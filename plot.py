@@ -1,8 +1,13 @@
 import plotly.plotly as py
 import plotly.graph_objs as go
 import plotly.tools
-
 import networkx as nx
+import matplotlib.pyplot as plt
+
+#see https://networkx.github.io/documentation/stable/reference/generated/networkx.drawing.nx_pylab.draw_networkx.html#networkx.drawing.nx_pylab.draw_networkx
+def simplePlot(G):
+	nx.draw_networkx(G,with_labels=False,node_size=20)
+	plt.show()
 
 def plotGraph(G,title='Network graph made with Python'):
 	plotly.tools.set_credentials_file(username='gspend', api_key='E9v3qLGDqVSS5GYw1mYa')

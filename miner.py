@@ -59,7 +59,7 @@ class Miner:
 	def handleTx(self,t,tick,sender,adj):
 		self.seen[t.hash()] = t
 		if self.process(tick,t,sender): #ABSTRACT - process tx
-			self.broadcast(adj,t) #broadcast new/first-time-seen-NOT-ORPHAN tx
+			self.broadcast(adj,t) #broadcast new/first-time-seen-NOT-ORPHAN tx only
 	
 	#adj is adjacent miners
 	def step(self,tick,adj):

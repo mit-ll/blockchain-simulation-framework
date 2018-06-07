@@ -12,6 +12,7 @@ class Tx:
 		self.pointers = []
 		self.history = [] #event history
 		self.reissued = False #mark as true if the miner shepherding it finds that it's dead and reissues it.
+		self.stats = {} #filled in after sim for reports
 
 	#make sure not to include mutable properties like history or reissued
 	def hash(self):

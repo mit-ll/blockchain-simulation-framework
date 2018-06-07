@@ -71,7 +71,7 @@ class Bitcoin(miner.Miner):
 			t = n.tx
 			parent = self.findInChain(t.pointers[0]) #only ever one pointer in Bitcoin
 			if first:
-				broadcast = self.findInChain(tAdd.pointers[0]) is not None #do not broadcast orphans
+				broadcast = parent is not None #do not broadcast orphans
 				t.addEvent(tick,self.id,tx.State.PRE) #putting this here means that orphans are marked PRE before they join the genesis-rooted tree
 			if parent is None:
 				#handle orphans as nodes (not just tx) so that we can build orphan chains from them
