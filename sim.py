@@ -29,15 +29,15 @@ def makeGraph(o,mclass=miner.Miner):
 		return g
 
 def runSim(g,o):
-	tick = 0
+	o.tick = 0
 	while True:
 		o.idBag.clear()
 		for i in g.nodes:
-			g.nodes[i]['miner'].step(tick,list(g.neighbors(i))) #process messages, populate reissues
+			g.nodes[i]['miner'].step(list(g.neighbors(i))) #process messages, populate reissues
 		for i in g.nodes:
 			g.nodes[i]['miner'].checkReissues() #add reissues to o.idBag
 		for i in g.nodes:
-			g.nodes[i]['miner'].postStep(tick,list(g.neighbors(i))) #if win PoW lottery, gen new tx
+			g.nodes[i]['miner'].postStep(list(g.neighbors(i))) #if win PoW lottery, gen new tx
 		for i in g.nodes:
 			g.nodes[i]['miner'].flushMsgs()
 		
@@ -46,7 +46,7 @@ def runSim(g,o):
 		anyHaveMsg = bool([True for i in g.nodes if g.nodes[i]['miner'].queue])
 		if o.txGenProb <= 0 and not anyHaveMsg: #run until no miners have messages
 			break
-		tick += 1
+		o.tick += 1
 
 #==REPORTS===========================
 		
@@ -130,7 +130,7 @@ def reports(g,o):
 	#	The simulation will output probability distributions for each transactions. Namely, the time it took for each miner to accept it and the time it took for all miners to accept it.
 	seenfirst = set() #set of tx.ids for which we have handled the original reissued tx and will ignore all other tx with that id
 	for x in o.allTx:
-		if x.id in seenfirst or x not in cons:
+		if x.id in seenfirst:
 			continue #these tx will have x.stats = {}
 		seenfirst.add(x.id)
 		times = {}
@@ -139,10 +139,10 @@ def reports(g,o):
 			if e.state == tx.State.CONSENSUS:
 				t = e.ts - x.birthday
 				mx = addToTimes(times,e.miner,t,mx)
-		x.stats['times'] = times
-		x.stats['maxTime'] = mx
-		#print x.id,mx
-	maxes = [t.stats['maxTime'] for t in o.allTx if t.pointers and t.stats] #drop genesis
+		if mx > 0: #if mx is still -99, no tx with that id was ever consensed
+			x.stats['times'] = times
+			x.stats['maxTime'] = mx
+	maxes = [t.stats['maxTime'] for t in o.allTx if t.pointers and t.stats]
 	assert maxes
 	plt.hist(maxes)#,bins=range(int(math.floor(min(maxes)/10.0))*10,int(math.ceil(max(maxes)/10.0))*10,2))
 	plt.show()

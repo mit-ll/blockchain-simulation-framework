@@ -68,7 +68,7 @@ class Bitcoin(miner.Miner):
 
 	#t is a tx (with pointer already set), and miner.py has already checked that we haven't seen it
 	#returns whether to broadcast tAdd to neighbors
-	def addToChain(self,tAdd,tick,sender):
+	def addToChain(self,tAdd,sender):
 		#from bitcoin wiki (https://en.bitcoin.it/wiki/Protocol_rules):
 		#	add this to orphan blocks, then query peer we got this from for 1st missing orphan block in prev chain; done with block
 		#	(also, when handling orphan blocks:) For each orphan block for which this block is its prev, run all these steps (including this one) recursively on that orphan
@@ -83,7 +83,7 @@ class Bitcoin(miner.Miner):
 			parent = self.findInChain(t.pointers[0]) #only ever one pointer in Bitcoin
 			if first:
 				broadcast = not self.childOfOrphan(t) #do not broadcast if oldest parent is orphan (includes orphan AND children of orphans!!)
-				t.addEvent(tick,self.id,tx.State.PRE) #putting this here means that orphans are marked PRE before they join the genesis-rooted tree
+				t.addEvent(self.o.tick,self.id,tx.State.PRE) #putting this here means that orphans are marked PRE before they join the genesis-rooted tree
 			if parent is None:
 				self.orphans.append(n) #handle orphans as nodes (not just tx) so that we can build orphan chains from them
 				if first: #only for new orphan
@@ -97,7 +97,7 @@ class Bitcoin(miner.Miner):
 
 	#returns maxDepth
 	#if maxDepth is > 0, will mark tx as accepted if they are in the deepest chain and at least 6 deep (will also add sheep to self.reissue if appropriate)
-	def checkRec(self,node,tick,maxDepth=-99,d=0):
+	def checkRec(self,node,maxDepth=-99,d=0):
 		if not node.children:
 			#the only portion of the the checks at the end of this function that need to be run on leaf nodes
 			if maxDepth > 0 and node.tx in self.sheep and d < maxDepth - self.o.bitcoinAcceptDepth:
@@ -106,20 +106,20 @@ class Bitcoin(miner.Miner):
 		
 		mx = 0
 		for c in node.children:
-			i = self.checkRec(c,tick,maxDepth,d+1)
+			i = self.checkRec(c,maxDepth,d+1)
 			if i > mx:
 				mx = i
 		
 		if maxDepth > 0:
 			if mx == maxDepth and mx - d >= self.o.bitcoinAcceptDepth:
 				if node.tx not in self.accepted:
-					node.tx.addEvent(tick,self.id,tx.State.CONSENSUS)
+					node.tx.addEvent(self.o.tick,self.id,tx.State.CONSENSUS)
 					self.accepted.add(node.tx)
 				if node.tx.id in self.reissue:
 					self.reissue.remove(node.tx.id) #accepted, so it doesn't need to be reiussed
 			elif mx != maxDepth:
 				if node.tx in self.accepted:
-					node.tx.addEvent(tick,self.id,tx.State.DISCONSENSED)
+					node.tx.addEdfvent(self.o.tick,self.id,tx.State.DISCONSENSED)
 					self.accepted.remove(node.tx)
 				#below:first condition says that it's a sheep on an unaccepted fork, second condition says whether it's time to rebroadcast (~"trunk" is 6+ deep)
 				if node.tx in self.sheep and mx < maxDepth - self.o.bitcoinAcceptDepth:
@@ -128,14 +128,10 @@ class Bitcoin(miner.Miner):
 
 	#==overwritten methods============
 
-	#get things set up before tick
-	def preTick(self):
-		self.reissue = set()
-
 	#return tx
 	#make sure to append to self.o.allTx
-	def makeTx(self,tick):
-		newtx = tx.Tx(tick,self.id,self.o.idBag.getNextId())
+	def makeTx(self):
+		newtx = tx.Tx(self.o.tick,self.id,self.o.idBag.getNextId())
 		deepest = deepestChildren(self.root)
 		parent = random.choice(deepest)
 		newtx.pointers.append(parent.tx.hash())
@@ -146,9 +142,6 @@ class Bitcoin(miner.Miner):
 	#How BITCOIN miners handle shepherding
 	#checkall, which should also mark nodes as need-to-reissue
 	#give "need-to-reissue" to sim.py to setup IdBag
-	#for each sheep in self.sheep, if that node is marked; set the first one as newTx
-	#else, chance to make newTx
-	#if newTx, handle and checkall (exact same as above, if any are marked as need-to-reissue, then they will still be marked next step if no msgs)
 
 	#a chance for the miner to put its need-to-reissue tx in o.IdBag
 	def checkReissues(self):
@@ -164,15 +157,26 @@ class Bitcoin(miner.Miner):
 	#update view
 	#run tau-func on all tx
 	#return True if should broadcast, False otherwise
-	def process(self,tick,t,sender):
-		return self.addToChain(t,tick,sender)
+	def process(self,t,sender):
+		return self.addToChain(t,sender)
 
 	#check all nodes for consensus (runs an implicit "tau" on each node, but all at once because it's faster)
-	def checkAll(self,tick):
-		maxDepth = self.checkRec(self.root,tick)
+	def checkAll(self):
+		self.reissue = set() #only reset when you checkAll so that it stays full
+		maxDepth = self.checkRec(self.root)
 		if maxDepth < self.o.bitcoinAcceptDepth:
 			return
-		self.checkRec(self.root,tick,maxDepth)
+		self.checkRec(self.root,maxDepth)
 
-	
+	#overseer will call this to tell the miner that it doesn't have to shepherd an id anymore
+	def removeSheep(self,i):
+		x = None
+		for s in self.sheep:
+			if s.id == i:
+				x = s
+		if x:
+			self.sheep.remove(x)
+		if i in self.reissue:
+			self.reissue.remove(i)
+
 

@@ -68,16 +68,15 @@ class Miner:
 	def sendRequest(self,recipient,targetHash):
 		self.sendMsg(recipient,Message(self.id,Type.REQUEST,targetHash))
 
-	def handleTx(self,t,tick,sender,adj):
+	def handleTx(self,t,sender,adj):
 		self.seen[t.hash()] = t
-		if self.process(tick,t,sender): #ABSTRACT - process tx
+		if self.process(t,sender): #ABSTRACT - process tx
 			self.broadcast(adj,t) #broadcast new/first-time-seen-NOT-ORPHAN tx only
 	
 	#adj is adjacent miners
-	def step(self,tick,adj):
+	def step(self,adj):
 		forceSheepCheck = self.hadChangeLastStep
 		self.hadChangeLastStep = False
-		self.preTick()
 		needToCheck = False
 		for msg in self.popMsg(): #receive message(s) from queue
 			if msg.type == Type.BLOCK:
@@ -86,13 +85,13 @@ class Miner:
 					continue
 				needToCheck = True
 				self.hadChangeLastStep = True
-				self.handleTx(t,tick,msg.sender,adj)
+				self.handleTx(t,msg.sender,adj)
 			elif msg.type == Type.REQUEST: #requests are issued by other miners
 				targetHash = msg.content
 
 				#DEBUG
 				if targetHash not in self.seen:
-					print self.id,"doesn't know hash",targetHash,"requested by",msg.sender,"on step",tick
+					print self.id,"doesn't know hash",targetHash,"requested by",msg.sender,"on step",self.o.tick
 					print "Unhashed target:"
 					for t in self.o.allTx:
 						if t.hash() == targetHash:
@@ -102,26 +101,22 @@ class Miner:
 				requestedTx = self.seen[targetHash] #if it isn't there, there's a problem
 				self.sendMsg(msg.sender,Message(self.id,Type.BLOCK,requestedTx))
 		if needToCheck or (self.hasSheep() and forceSheepCheck): #have to check every time if has sheep...
-			self.checkAll(tick)
+			self.checkAll()
 			
-	def postStep(self,tick,adj):
+	def postStep(self,adj):
 		if random.random() < self.o.txGenProb: #chance to gen tx (important that this happens AFTER processing messages)
-			newtx = self.makeTx(tick) #ABSTRACT - make a new tx
+			newtx = self.makeTx() #ABSTRACT - make a new tx
 			self.hadChangeLastStep = True
-			self.handleTx(newtx,tick,self.id,adj)
-			self.checkAll(tick)
+			self.handleTx(newtx,self.id,adj)
+			self.checkAll()
 
 	#==ABSTRACT====================================
 	#copy and overwrite these method in subclasses!
 
-	#get things set up before tick
-	def preTick(self):
-		return None
-
 	#return tx
 	#make sure to append to self.o.allTx
-	def makeTx(self,tick):
-		newtx = tx.Tx(tick,self.id,self.o.idBag.getNextId())
+	def makeTx(self):
+		newtx = tx.Tx(self.o.tick,self.id,self.o.idBag.getNextId())
 		self.o.allTx.append(newtx)
 		return newtx
 
@@ -136,11 +131,15 @@ class Miner:
 	#update view
 	#run tau-func on all tx
 	#return True if should broadcast, False otherwise
-	def process(self,tick,t,sender):
-		t.addEvent(tick,self.id,tx.State.CONSENSUS)
+	def process(self,t,sender):
+		t.addEvent(self.o.tick,self.id,tx.State.CONSENSUS)
 		return True
 
 	#check all nodes for consensus (calling Tau)
-	def checkAll(self,tick):
+	def checkAll(self):
+		return None
+		
+	#overseer will call this to tell the miner that it doesn't have to shepherd an id anymore
+	def removeSheep(self,i):
 		return None
 

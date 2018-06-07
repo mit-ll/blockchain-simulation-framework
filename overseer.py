@@ -7,12 +7,7 @@ class IdBag:
 	def getNextId(self):
 		if self.bag:
 			i,miner = self.bag.pop(0)
-			x = None
-			for s in miner.sheep:
-				if s.id == i:
-					x = s
-			if x:
-				miner.sheep.remove(x)
+			miner.removeSheep(i)
 			return i
 		else:
 			ret = IdBag.nextId
@@ -34,6 +29,7 @@ class IdBag:
 		self.bag = []
 
 class Overseer:
+	tick = -1
 	numMiners = 200
 	allTx = []
 	txGenProb = .0001667 #once every 10 minutes, assuming 1 tick is 100ms
