@@ -1,0 +1,13 @@
+import sim,overseer
+o = overseer.Overseer()
+g = sim.makeGraph(o)
+sim.runSim(g,o)
+
+
+allMiners = set()
+for n in g.nodes:
+	allMiners.add(g.nodes[n]['miner'].id)
+
+def checkHist(hist,miners):
+	s = set([e.miner for e in hist])
+	return list(miners - s)
