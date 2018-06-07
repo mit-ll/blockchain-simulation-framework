@@ -11,8 +11,23 @@ for n in g.nodes:
 	allMinerIds.add(m.id)
 	allMiners.append(m)
 
-def blame(id):
-	return o.allTx[id-1].origin
+
+def printSChain(acc,node,t=0):
+	i = node.tx.id
+	s = '  '*t + str(i)
+	if not node.tx.reissued and i in acc:
+		s+='*'
+	elif node.tx.reissued:
+		s+='-'
+	print s
+	for c in node.children:
+		printSChain(acc,c,t+1)
+
+m = g.nodes[0]['miner']
+acc = set([t.id for t in m.accepted])
+printSChain(acc,m.root)
+
+
 
 
 
@@ -22,9 +37,11 @@ def checkHist(hist,miners):
 	return list(miners - s)
 
 for t in o.allTx:
+	if t.reissued:
+		continue
 	check = checkHist(t.history,allMinerIds)
 	if check:
-		print t.id,check
+		print t.id
 
 
 
@@ -32,35 +49,22 @@ for t in o.allTx:
 def chIds(node):
 	return set([n.tx.id for n in node.children])
 
+#try to compare all miners' views to one another...
 def allRec(nodes):
 	if not nodes:
 		return True
-	ch = chIds(nodes[0])
+	curr = nodes[0]
+	ch = chIds(curr)
 	for n in nodes:
 		if ch != chIds(n):
 			return False
 	print 'go deeper'
-	for i in range(len(ch)):
-		if not allRec([list(set(n.children))[i] for n in nodes]):
+	for d in curr.children:
+		if not allRec([c for n in nodes for c in n.children if c.tx.id == d.tx.id]):
 			return False
 	return True
 
 allRec([m.root for m in allMiners])
 
-
-
-
-def printSChain(acc,node,t=0):
-	i = node.tx.id
-	s = '  '*t + str(i)
-	if not node.tx.reissued and i in acc:
-		s+='*'
-	print s
-	for c in node.children:
-		printSChain(acc,c,t+1)
-
-m = g.nodes[0]['miner']
-acc = set([t.id for t in m.accepted])
-printSChain(acc,m.root)
 
 

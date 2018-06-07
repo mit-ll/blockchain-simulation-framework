@@ -13,12 +13,16 @@ class Tx:
 		self.history = [] #event history
 		self.reissued = False #mark as true if the miner shepherding it finds that it's dead and reissues it.
 
+	#make sure not to include mutable properties like history or reissued
 	def hash(self):
-		s = ''.join(self.pointers)+str(self.id)
+		s = ''.join(self.pointers)+str(self.id)+str(self.birthday)+str(self.origin)
 		return hashlib.md5(s).hexdigest()
 
 	def addEvent(self,ts,miner,state):
 		self.history.append(Event(ts,miner,state))
+
+	def __str__(self):
+		return str(self.id)+' '+str(self.origin)+' '+str(self.birthday)+' '+str(self.pointers)+' '+str(self.reissued)
 
 #backpointer is an inherent part of the tx, each miner takes it or leaves it as a whole
 

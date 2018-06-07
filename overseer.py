@@ -8,4 +8,4 @@ class Overseer:
 
 #Notes
 #Setting message delay in ticks ties ticks to a certain real-world time span
-#If we add chance to drop messages, we also need some kind of re-broadcast/gossip!
+#TODO simulate dropped messages?
