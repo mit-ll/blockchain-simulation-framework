@@ -105,8 +105,7 @@ def reports(g,o):
 		s = set([e.miner for e in t.history if e.state == tx.State.CONSENSUS])
 		if not s: #not consensed by any miner
 			other.append(t)
-			continue
-		if allMinerIds - s:
+		elif allMinerIds - s:
 			unc.append(t)
 		else:
 			cons.append(t)
@@ -142,6 +141,9 @@ def reports(g,o):
 		if mx > 0: #if mx is still -99, no tx with that id was ever consensed
 			x.stats['times'] = times
 			x.stats['maxTime'] = mx
+	showMaxHist(o)
+			
+def showMaxHist(o):
 	maxes = [t.stats['maxTime'] for t in o.allTx if t.pointers and t.stats]
 	assert maxes
 	plt.hist(maxes)#,bins=range(int(math.floor(min(maxes)/10.0))*10,int(math.ceil(max(maxes)/10.0))*10,2))

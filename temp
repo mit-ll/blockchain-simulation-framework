@@ -37,6 +37,10 @@ def t(i=None):
 
 t(0)
 
+sim.reports(g,o)
+s = [x for x in o.allTx if x.stats]
+sorted([(x.id,x.stats['maxTime']) for x in s],key=lambda x:x[1],reverse=True)
+
 
 
 
