@@ -3,7 +3,7 @@ o = overseer.Overseer()
 g = sim.makeGraph(o,bitcoin.Bitcoin)
 #plot.plotGraph(g)
 sim.runSim(g,o)
-sim.reports(g,o)
+#sim.reports(g,o)
 
 
 
@@ -31,7 +31,7 @@ def printSChain(acc,node,me,t=0):
 		printSChain(acc,c,me,t+1)
 
 def t(i=None):
-	if i is not None:
+	if i is None:
 		i = random.randint(0,o.numMiners)
 	print 'MINER',i
 	m = g.nodes[i]['miner']

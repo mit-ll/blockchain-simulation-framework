@@ -44,12 +44,24 @@ class Miner:
 				self.pushMsg(msg,i)
 		return ret #should a miner only receive 1 message at a time, or can it do all at once like this?
 
-	#broadcast message to all adjacent miners
+	#broadcast tx to all adjacent miners
 	def broadcast(self,adj,t):
 		for i in adj:
 			self.sendMsg(i,Message(self.id,Type.BLOCK,t))
 
 	def sendMsg(self,recipient,msg):
+	
+		#DEBUG
+		if msg.type == Type.BLOCK and set(msg.content.pointers) - set(self.seen):
+			diff = list(set(msg.content.pointers) - set(self.seen))
+			print self.id,"is sending",msg.content.id,"to",recipient,"but it hasn't seen hash(es):",diff
+			print "Unhashed pointer(s):"
+			for targetHash in diff:
+				for t in self.o.allTx:
+					if t.hash() == targetHash:
+						print targetHash,"->",t.id,t.origin,t.birthday,t.pointers,t.reissued
+			assert False
+			
 		self.g.nodes[recipient]['miner'].pushMsg(msg,random.randint(0,10)) #TODO parameterize delay
 
 	#so subclasses don't have to know about Message/Type classes
@@ -85,7 +97,7 @@ class Miner:
 					for t in self.o.allTx:
 						if t.hash() == targetHash:
 							print t.id,t.origin,t.birthday,t.pointers,t.reissued
-					assert False
+					assert False #currently should NEVER get here; should be caught in assertFalse in DEBUG section of sendMsg
 				
 				requestedTx = self.seen[targetHash] #if it isn't there, there's a problem
 				self.sendMsg(msg.sender,Message(self.id,Type.BLOCK,requestedTx))
@@ -93,10 +105,14 @@ class Miner:
 		if needToCheck or (self.hasSheep() and forceSheepCheck): #have to check every time if has sheep...
 			self.checkAll(tick)
 		
-		newtx = self.shepherd(tick) #ABSTRACT - check shepherded tx; only gen if not reissuing a sheep
-		if not newtx and random.random() < self.o.txGenProb: #chance to gen tx (important that this happens AFTER processing messages)
-			newtx = self.makeTx(tick) #ABSTRACT - make a new tx
-		if newtx:
+		if random.random() < self.o.txGenProb: #chance to gen tx (important that this happens AFTER processing messages)
+			#NOTES
+			#the only thing that this shepherd simulation simulates incorrectly is that other miners would likely reissue that tx, not the one who did the first time (because in reality, the tx doesn't belong to the miner)
+			#this also makes a tx much much harder to reissue...
+			#maybe throw reissuable-sheep into a global list and let all miners pull from it.
+			newtx = self.shepherd(tick) #ABSTRACT - check shepherded tx; only gen if not reissuing a sheep
+			if not newtx:
+				newtx = self.makeTx(tick) #ABSTRACT - make a new tx
 			self.hadChangeLastStep = True
 			self.handleTx(newtx,tick,self.id,adj)
 			self.checkAll(tick)

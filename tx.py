@@ -1,6 +1,6 @@
 import hashlib
 class Tx:
-	nextId = 0
+	nextId = 0 #if we're going forward with IdBag, make sure to 
 	def __init__(self,tick,m=None,forceid=None):
 		self.origin = m
 		if forceid:

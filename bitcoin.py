@@ -40,8 +40,8 @@ class Bitcoin(miner.Miner):
 	def __init__(self,i,gen,g,o):
 		miner.Miner.__init__(self,i,gen,g,o) #calls self.start()
 		self.root = Node(gen)
-		self.chain = set() #set of nodes (a second pointer into the chain for when you need to find a node with a tx that has a certain hash)
-		self.chain.add(self.root)
+		self.chain = {} #maps has to nodes whose tx has that hash
+		self.chain[gen.hash()] = self.root
 		self.accepted = set() #set of tx I've accepted. WARNING: don't count on this for reporting; use tx history instead
 		self.root.tx.addEvent(-1,self.id,tx.State.CONSENSUS)
 		self.accepted.add(self.root.tx)
@@ -51,19 +51,30 @@ class Bitcoin(miner.Miner):
 
 	#returns the tx from self.chain with the target hash
 	def findInChain(self,target):
-		for n in self.chain:
-			if target == n.tx.hash():
-				return n
+		if target in self.chain:
+			return self.chain[target]
 		return None
+	
+	#returns False if earliest parent is genesis tx (t is "rooted in genesis tx")
+	#returns True otherwise (t is an orphan or child of an orphan)
+	def childOfOrphan(self,t):
+		if not t.pointers: #only genesis tx has not pointers
+			return False
+		parent = self.findInChain(t.pointers[0])
+		if parent is None:
+			return True
+		else:
+			return self.childOfOrphan(parent.tx)
 
 	#t is a tx (with pointer already set), and miner.py has already checked that we haven't seen it
+	#returns whether to broadcast tAdd to neighbors
 	def addToChain(self,tAdd,tick,sender):
 		#from bitcoin wiki (https://en.bitcoin.it/wiki/Protocol_rules):
 		#	add this to orphan blocks, then query peer we got this from for 1st missing orphan block in prev chain; done with block
 		#	(also, when handling orphan blocks:) For each orphan block for which this block is its prev, run all these steps (including this one) recursively on that orphan
 		#keep list of orphan nodes, still put them in self.chain so we have pointers to them, and whenever we get a new node, check orphans to see if it fits!
 		newn = Node(tAdd)
-		self.chain.add(newn)
+		self.chain[tAdd.hash()] = newn
 		temp = [newn] + self.orphans[:]
 		self.orphans = []
 		first = True #this matters for non-orphan-broadcast and for not requesting old orphans from current "sender" who has nothing to do with them
@@ -71,11 +82,10 @@ class Bitcoin(miner.Miner):
 			t = n.tx
 			parent = self.findInChain(t.pointers[0]) #only ever one pointer in Bitcoin
 			if first:
-				broadcast = parent is not None #do not broadcast orphans
+				broadcast = not self.childOfOrphan(t) #do not broadcast if oldest parent is orphan (includes orphan AND children of orphans!!)
 				t.addEvent(tick,self.id,tx.State.PRE) #putting this here means that orphans are marked PRE before they join the genesis-rooted tree
 			if parent is None:
-				#handle orphans as nodes (not just tx) so that we can build orphan chains from them
-				self.orphans.append(n)
+				self.orphans.append(n) #handle orphans as nodes (not just tx) so that we can build orphan chains from them
 				if first: #only for new orphan
 					assert sender != self.id
 					self.sendRequest(sender,t.pointers[0])

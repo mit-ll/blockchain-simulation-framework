@@ -1,16 +1,16 @@
-import miner,overseer,plot,tx,bitcoin,random
+import miner,overseer,plot,tx,bitcoin,random,math
 import networkx as nx
+import matplotlib.pyplot as plt
 
 #TODO: different topologies
 def makeGraph(o,mclass=miner.Miner):
 	#TEST
-	if True:#True: # while python sim.py; do :; done
+	if False:#True: # while python sim.py; do :; done
 		degree = random.uniform(.125,.175)
 		num = random.randint(o.numMiners,o.numMiners*2)
-		chance = random.uniform(.0001,.001)
+		#chance = random.uniform(.0001,.001) #this is a pretty huge spread
 		mt = random.randint(o.maxTx,o.maxTx*2)
-		print "No.:",num,"; Degree:",degree,"; MaxTx:",mt,"; Chance:",chance
-		o.txGenProb = chance
+		print "Miners:",num,"; Degree:",degree,"; MaxTx:",mt
 		o.maxTx = mt
 		g=nx.random_geometric_graph(num,degree)
 	else:
@@ -42,6 +42,8 @@ def runSim(g,o):
 		if o.txGenProb <= 0 and not anyHaveMsg: #run until no miners have messages
 			break
 		tick += 1
+
+#==REPORTS===========================
 		
 def addToTimes(times,miner,t,mx):
 	if miner not in times:
@@ -63,7 +65,19 @@ def printSChain(acc,node,me,t=0):
 	print s
 	for c in node.children:
 		printSChain(acc,c,me,t+1)
+		
+#reports histogram for how long different miners took to accept tx i
+#o is overseer, i is tx id
+def timeToAccept(o,i):
+	x = o.allTx[i]
+	if not x.stats:
+		return None
+	h = x.stats['times'].values()
+	plt.hist(h)
+	plt.show()
+	return h
 
+#populates tx (in o.allTx) with individual report data
 def reports(g,o):
 	allMinerIds = set()
 	allMiners=[]
@@ -75,12 +89,19 @@ def reports(g,o):
 	#	were all nodes consensed (if any node was consensed by one, it must be consensed by all)
 	disc = [] # disconsensed tx (consensed once, then unconsensed) (may overlap with cons, unc, or other)
 	unc = [] # unconsensed tx (consensed by 1 or more but not all miners)
-	cons = [] # consensed tx (consensed by all miners) (allTx = cons + unc + other)
+	cons = [] # consensed non-reissued tx (consensed by all miners) (allTx = cons + unc + other)
 	other = [] # not consensed by any miner (different from unconsensed) or reissued
+	reiss = {} # maps id to first isse of that id
 	for t in o.allTx:
-		if [True for e in t.history if e.state == 3]:
+		if [True for e in t.history if e.state == tx.State.DISCONSENSED]:
 			disc.append(t)
-		s = set([e.miner for e in t.history if e.state == 2])
+		if t.reissued and t not in reiss:
+			reiss[t.id] = t
+		if t.id in reiss and reiss[t.id].hash() != t.hash():
+			#BUG: the first instance of a reissued tx ends up with a history with only events with state==1 !!??
+			print "appending",t.history,"\nonto",reiss[t.id].history
+			reiss[t.id].history += t.history #append tx history to original reissued tx's (this won't matter until the prob. dist. computation below)
+		s = set([e.miner for e in t.history if e.state == tx.State.CONSENSUS])
 		if t.reissued or not s: #not consensed by any miner
 			other.append(t)
 			continue
@@ -97,22 +118,32 @@ def reports(g,o):
 		#TEMP
 	if unc:
 		print "Consensus has still not been reached for some tx:",[t.id for t in unc]
+		
+	#NOTE: txs with same id are collapsed into the first instance of that id for probability distributions, but not for disconsensed/unconsensed
+	
 	#TODO
 	#	The simulation will output probability distributions for each transactions. Namely, the time it took for each miner to accept it and the time it took for all miners to accept it.
+	seenreiss = set() #set of tx.ids for which we have handled the original reissued tx and will ignore all other tx with that id
 	for x in o.allTx:
-		if x in unc or x in other: # ignore tx that weren't consensed
+		if x in unc or (x in other and not x.reissued) or x.id in seenreiss: # ignore tx that weren't consensed by all miners and tx that aren't the first time we've seen that id
 			#print x.id,'--'
-			x.stats['noStats'] = True
+			#for any tx, check "if x.stats:..."
 			continue
+		if x.reissued:
+			seenreiss.add(x.id)
 		times = {}
 		mx = -99
 		for e in x.history:
-			t = e.ts - x.birthday
-			mx = addToTimes(times,e.miner,t,mx)
-		x.stats['noStats'] = False
+			if e.state == tx.State.CONSENSUS:
+				t = e.ts - x.birthday
+				mx = addToTimes(times,e.miner,t,mx)
 		x.stats['times'] = times
 		x.stats['maxTime'] = mx
 		#print x.id,mx
+	maxes = [t.stats['maxTime'] for t in o.allTx if t.pointers and t.stats] #drop genesis
+	assert maxes
+	plt.hist(maxes,bins=range(int(math.floor(min(maxes)/10.0))*10,int(math.ceil(max(maxes)/10.0))*10,2))
+	plt.show()
 	return
 
 if __name__ == "__main__":
@@ -121,3 +152,8 @@ if __name__ == "__main__":
 	#plot.plotGraph(g)
 	runSim(g,o)
 	reports(g,o)
+
+
+
+
+
