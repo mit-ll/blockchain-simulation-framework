@@ -1,20 +1,14 @@
 import hashlib
 class Tx:
-	nextId = 0 #if we're going forward with IdBag, make sure to 
-	def __init__(self,tick,m=None,forceid=None):
+	def __init__(self,tick,m,i):
 		self.origin = m
-		if forceid:
-			self.id = forceid
-		else:
-			self.id = Tx.nextId
-			Tx.nextId += 1
+		self.id = i
 		self.birthday = tick
 		self.pointers = []
 		self.history = [] #event history
-		self.reissued = False #mark as true if the miner shepherding it finds that it's dead and reissues it.
 		self.stats = {} #filled in after sim for reports
 
-	#make sure not to include mutable properties like history or reissued
+	#make sure not to include mutable properties like history!
 	def hash(self):
 		s = ''.join(self.pointers)+str(self.id)+str(self.birthday)+str(self.origin)
 		return hashlib.md5(s).hexdigest()
@@ -23,7 +17,7 @@ class Tx:
 		self.history.append(Event(ts,miner,state))
 
 	def __str__(self):
-		return str(self.id)+' '+str(self.origin)+' '+str(self.birthday)+' '+str(self.pointers)+' '+str(self.reissued)
+		return str(self.id)+' '+str(self.origin)+' '+str(self.birthday)+' '+str(self.pointers)
 
 #backpointer is an inherent part of the tx, each miner takes it or leaves it as a whole
 

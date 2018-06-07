@@ -59,7 +59,7 @@ class Miner:
 			for targetHash in diff:
 				for t in self.o.allTx:
 					if t.hash() == targetHash:
-						print targetHash,"->",t.id,t.origin,t.birthday,t.pointers,t.reissued
+						print targetHash,"->",t.id,t.origin,t.birthday,t.pointers
 			assert False
 			
 		self.g.nodes[recipient]['miner'].pushMsg(msg,random.randint(0,10)) #TODO parameterize delay
@@ -96,23 +96,17 @@ class Miner:
 					print "Unhashed target:"
 					for t in self.o.allTx:
 						if t.hash() == targetHash:
-							print t.id,t.origin,t.birthday,t.pointers,t.reissued
+							print t.id,t.origin,t.birthday,t.pointers
 					assert False #currently should NEVER get here; should be caught in assertFalse in DEBUG section of sendMsg
 				
 				requestedTx = self.seen[targetHash] #if it isn't there, there's a problem
 				self.sendMsg(msg.sender,Message(self.id,Type.BLOCK,requestedTx))
-
 		if needToCheck or (self.hasSheep() and forceSheepCheck): #have to check every time if has sheep...
 			self.checkAll(tick)
-		
+			
+	def postStep(self,tick,adj):
 		if random.random() < self.o.txGenProb: #chance to gen tx (important that this happens AFTER processing messages)
-			#NOTES
-			#the only thing that this shepherd simulation simulates incorrectly is that other miners would likely reissue that tx, not the one who did the first time (because in reality, the tx doesn't belong to the miner)
-			#this also makes a tx much much harder to reissue...
-			#maybe throw reissuable-sheep into a global list and let all miners pull from it.
-			newtx = self.shepherd(tick) #ABSTRACT - check shepherded tx; only gen if not reissuing a sheep
-			if not newtx:
-				newtx = self.makeTx(tick) #ABSTRACT - make a new tx
+			newtx = self.makeTx(tick) #ABSTRACT - make a new tx
 			self.hadChangeLastStep = True
 			self.handleTx(newtx,tick,self.id,adj)
 			self.checkAll(tick)
@@ -127,12 +121,12 @@ class Miner:
 	#return tx
 	#make sure to append to self.o.allTx
 	def makeTx(self,tick):
-		newtx = tx.Tx(tick)
+		newtx = tx.Tx(tick,self.id,self.o.idBag.getNextId())
 		self.o.allTx.append(newtx)
 		return newtx
 
-	#return tx to shepherd, or None if none
-	def shepherd(self,tick):
+	#a chance for the miner to put its need-to-reissue tx in o.IdBag
+	def checkReissues(self):
 		return None
 		
 	#returns whether miner has sheep

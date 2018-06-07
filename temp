@@ -1,7 +1,6 @@
 import sim,overseer,plot,bitcoin,random
 o = overseer.Overseer()
 g = sim.makeGraph(o,bitcoin.Bitcoin)
-#plot.plotGraph(g)
 sim.runSim(g,o)
 #sim.reports(g,o)
 
@@ -16,27 +15,25 @@ for n in g.nodes:
 
 
 
-def printSChain(acc,node,me,t=0):
+def printSChain(node,me,t=0):
 	i = node.tx.id
 	s = '  '*t + str(i)
-	if not node.tx.reissued and i in acc:
-		s+='*'
-	elif node.tx.reissued:
-		if node.tx.origin == me:
-			s+='='
-		else:
-			s+='-'
+	state = 0
+	for e in node.tx.history:
+		if e.miner == me:
+			state = e.state
+	if state == 2: #last state for this miner
+		s += "*"
 	print s
 	for c in node.children:
-		printSChain(acc,c,me,t+1)
+		printSChain(c,me,t+1)
 
 def t(i=None):
 	if i is None:
 		i = random.randint(0,o.numMiners)
 	print 'MINER',i
 	m = g.nodes[i]['miner']
-	acc = set([t.id for t in m.accepted])
-	printSChain(acc,m.root,m.id)
+	printSChain(m.root,m.id)
 
 t(0)
 

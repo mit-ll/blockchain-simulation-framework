@@ -1,19 +1,35 @@
 #put all settings here; sim.py can initalize/change
-class IdBag: #problem with this is when to clear or remove sheep that are reconsensed...
+class IdBag:
 	nextId = 0
 	def __init__(self):
-		self.bag = []#only store ids
+		self.bag = [] #id queue
 		
 	def getNextId(self):
 		if self.bag:
-			return self.bag.pop(0)
-		ret = TxIdBag.nextId
-		IdBag.nextId += 1
-		return ret
-		
-	def addId(self,i):
-		self.bag.append(i)
+			i,miner = self.bag.pop(0)
+			x = None
+			for s in miner.sheep:
+				if s.id == i:
+					x = s
+			if x:
+				miner.sheep.remove(x)
+			return i
+		else:
+			ret = IdBag.nextId
+			IdBag.nextId += 1
+			return ret
+			
+	def peekNextId(self):
+		if self.bag:
+			return self.bag[0][0]
+		else:
+			return IdBag.nextId
+	
+	#miner is miner object, not just id
+	def addId(self,i,miner):
+		self.bag.append((i,miner))	#stores id and pointer to miner
 
+	#clear at beginning of every tick
 	def clear(self):
 		self.bag = []
 

@@ -42,11 +42,11 @@ class Bitcoin(miner.Miner):
 		self.root = Node(gen)
 		self.chain = {} #maps has to nodes whose tx has that hash
 		self.chain[gen.hash()] = self.root
-		self.accepted = set() #set of tx I've accepted. WARNING: don't count on this for reporting; use tx history instead
+		self.accepted = set() #set of tx I've accepted (only used to avoid spamming tx.history events); don't count on this for reporting, use tx.history instead
 		self.root.tx.addEvent(-1,self.id,tx.State.CONSENSUS)
 		self.accepted.add(self.root.tx)
-		self.sheep = [] #queue of tx to shepherd
-		self.reissue = [] #temporary ordered list of tx that need to be reissued (populated by checkAll; should be reset every tick)
+		self.sheep = set() #queue of tx to shepherd
+		self.reissue = set() #temporary set of ids that need to be reissued (populated by checkAll; should be reset every tick)
 		self.orphans = []
 
 	#returns the tx from self.chain with the target hash
@@ -96,63 +96,64 @@ class Bitcoin(miner.Miner):
 		return broadcast
 
 	#returns maxDepth
-	#if maxDepth is > 0, will mark tx as accepted if they are in the deepest chain and at least 6 deep
+	#if maxDepth is > 0, will mark tx as accepted if they are in the deepest chain and at least 6 deep (will also add sheep to self.reissue if appropriate)
 	def checkRec(self,node,tick,maxDepth=-99,d=0):
 		if not node.children:
-			if node.tx in self.sheep and d < maxDepth - self.o.bitcoinAcceptDepth:
-				self.reissue.append(node.tx)
+			#the only portion of the the checks at the end of this function that need to be run on leaf nodes
+			if maxDepth > 0 and node.tx in self.sheep and d < maxDepth - self.o.bitcoinAcceptDepth:
+				self.reissue.add(node.tx.id)
 			return d
+		
 		mx = 0
 		for c in node.children:
 			i = self.checkRec(c,tick,maxDepth,d+1)
 			if i > mx:
 				mx = i
-
+		
 		if maxDepth > 0:
-			if mx == maxDepth and mx - d >= self.o.bitcoinAcceptDepth and node.tx not in self.accepted:
-				node.tx.addEvent(tick,self.id,tx.State.CONSENSUS)
-				self.accepted.add(node.tx)
+			if mx == maxDepth and mx - d >= self.o.bitcoinAcceptDepth:
+				if node.tx not in self.accepted:
+					node.tx.addEvent(tick,self.id,tx.State.CONSENSUS)
+					self.accepted.add(node.tx)
+				if node.tx.id in self.reissue:
+					self.reissue.remove(node.tx.id) #accepted, so it doesn't need to be reiussed
 			elif mx != maxDepth:
 				if node.tx in self.accepted:
 					node.tx.addEvent(tick,self.id,tx.State.DISCONSENSED)
 					self.accepted.remove(node.tx)
 				#below:first condition says that it's a sheep on an unaccepted fork, second condition says whether it's time to rebroadcast (~"trunk" is 6+ deep)
 				if node.tx in self.sheep and mx < maxDepth - self.o.bitcoinAcceptDepth:
-					self.reissue.append(node.tx) #the order these will be added to reissue is leaf-up
-
+					self.reissue.add(node.tx.id) #the order these will be added to reissue is leaf-up
 		return mx
 
 	#==overwritten methods============
 
 	#get things set up before tick
 	def preTick(self):
-		self.reissue = []
+		self.reissue = set()
 
 	#return tx
 	#make sure to append to self.o.allTx
-	def makeTx(self,tick,forceid=None):
-		newtx = tx.Tx(tick,self.id,forceid)
+	def makeTx(self,tick):
+		newtx = tx.Tx(tick,self.id,self.o.idBag.getNextId())
 		deepest = deepestChildren(self.root)
 		parent = random.choice(deepest)
 		newtx.pointers.append(parent.tx.hash())
-		self.sheep.append(newtx)
+		self.sheep.add(newtx)
 		self.o.allTx.append(newtx)
 		return newtx
 
 	#How BITCOIN miners handle shepherding
 	#checkall, which should also mark nodes as need-to-reissue
+	#give "need-to-reissue" to sim.py to setup IdBag
 	#for each sheep in self.sheep, if that node is marked; set the first one as newTx
 	#else, chance to make newTx
 	#if newTx, handle and checkall (exact same as above, if any are marked as need-to-reissue, then they will still be marked next step if no msgs)
 
-	#return tx to shepherd, or None if none
-	def shepherd(self,tick):
-		if not self.reissue:
-			return None
-		deadTx = self.reissue[0]
-		self.sheep.remove(deadTx)
-		deadTx.reissued = True
-		return self.makeTx(tick,deadTx.id)
+	#a chance for the miner to put its need-to-reissue tx in o.IdBag
+	def checkReissues(self):
+		for i in self.reissue:
+			self.o.idBag.addId(i,self)
 		
 	#returns whether miner has sheep
 	def hasSheep(self):
