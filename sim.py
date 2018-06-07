@@ -1,4 +1,4 @@
-import miner,overseer,plot,tx,bitcoin,random,math
+import miner,overseer,plot,tx,bitcoin,random,math,time
 import networkx as nx
 import matplotlib.pyplot as plt
 
@@ -58,6 +58,23 @@ def addToTimes(times,miner,t,mx):
 	if t > mx:
 		mx = t
 	return mx
+
+#takes a transaction and shows/returns a histogram of how long it took each miner to accept it
+def showHist(t):
+	if not t.stats:
+		return None
+	data = t.stats['times'].values()
+	plt.hist(data)
+	plt.show()
+	return data #maybe just return t.stats['times']?
+
+#shows/returns a histogram of the max time it took each transaction to be accepted by all miners
+def showMaxHist(o):
+	maxes = [t.stats['maxTime'] for t in o.allTx if t.pointers and t.stats]
+	assert maxes
+	plt.hist(maxes)#,bins=range(int(math.floor(min(maxes)/10.0))*10,int(math.ceil(max(maxes)/10.0))*10,2))
+	plt.show()
+	return maxes
 	
 #TEMP
 def printSChain(node,me,t=0):
@@ -72,17 +89,6 @@ def printSChain(node,me,t=0):
 	print s
 	for c in node.children:
 		printSChain(c,me,t+1)
-		
-#reports histogram for how long different miners took to accept tx i
-#o is overseer, i is tx id
-def timeToAccept(o,i):
-	x = o.allTx[i]
-	if not x.stats:
-		return None
-	h = x.stats['times'].values()
-	plt.hist(h)
-	plt.show()
-	return h
 
 #populates tx (in o.allTx) with individual report data
 def reports(g,o):
@@ -141,22 +147,16 @@ def reports(g,o):
 		if mx > 0: #if mx is still -99, no tx with that id was ever consensed
 			x.stats['times'] = times
 			x.stats['maxTime'] = mx
-	showMaxHist(o)
-			
-def showMaxHist(o):
-	maxes = [t.stats['maxTime'] for t in o.allTx if t.pointers and t.stats]
-	assert maxes
-	plt.hist(maxes)#,bins=range(int(math.floor(min(maxes)/10.0))*10,int(math.ceil(max(maxes)/10.0))*10,2))
-	plt.show()
-	return
+	#showMaxHist(o)
 
 if __name__ == "__main__":
+	start = time.time()
 	o = overseer.Overseer()
 	g = makeGraph(o,bitcoin.Bitcoin)#g = makeGraph(o)
 	#plot.plotGraph(g)
 	runSim(g,o)
 	reports(g,o)
-
+	print time.time() - start
 
 
 
