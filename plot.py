@@ -6,16 +6,6 @@ import networkx as nx
 
 def plotGraph(G,title='Network graph made with Python'):
 	plotly.tools.set_credentials_file(username='gspend', api_key='E9v3qLGDqVSS5GYw1mYa')
-	pos=nx.get_node_attributes(G,'pos')
-
-	dmin=1
-	ncenter=0
-	for n in pos:
-		x,y=pos[n]
-		d=(x-0.5)**2+(y-0.5)**2
-		if d<dmin:
-			ncenter=n
-			dmin=d
 
 	edge_trace = go.Scatter(
 		x=[],

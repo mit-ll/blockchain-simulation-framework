@@ -1,14 +1,26 @@
+import hashlib
 class Tx:
 	nextId = 0
-	def __init__(self,tick):
-		self.id = Tx.nextId
-		Tx.nextId += 1
+	def __init__(self,tick,m=None,forceid=None):
+		self.origin = m
+		if forceid:
+			self.id = forceid
+		else:
+			self.id = Tx.nextId
+			Tx.nextId += 1
 		self.birthday = tick
 		self.pointers = []
 		self.history = [] #event history
+		self.reissued = False #mark as true if the miner shepherding it finds that it's dead and reissues it.
+
+	def hash(self):
+		s = ''.join(self.pointers)+str(self.id)
+		return hashlib.md5(s).hexdigest()
 
 	def addEvent(self,ts,miner,state):
 		self.history.append(Event(ts,miner,state))
+
+#backpointer is an inherent part of the tx, each miner takes it or leaves it as a whole
 
 class Event:
 	def __init__(self,ts,miner,state):
@@ -20,3 +32,4 @@ class State:
 	UNKNOWN = 0 #not needed; if a miner doesn't show up in a tx's history, it's in this state
 	PRE = 1
 	CONSENSUS = 2
+	DISCONSENSED = 3

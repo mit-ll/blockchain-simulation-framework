@@ -1,13 +1,66 @@
-import sim,overseer
+import sim,overseer,plot,bitcoin
 o = overseer.Overseer()
-g = sim.makeGraph(o)
+g = sim.makeGraph(o,bitcoin.Bitcoin)
+#plot.plotGraph(g)
 sim.runSim(g,o)
 
-
-allMiners = set()
+allMinerIds = set()
+allMiners=[]
 for n in g.nodes:
-	allMiners.add(g.nodes[n]['miner'].id)
+	m = g.nodes[n]['miner']
+	allMinerIds.add(m.id)
+	allMiners.append(m)
+
+def blame(id):
+	return o.allTx[id-1].origin
+
+
+
 
 def checkHist(hist,miners):
-	s = set([e.miner for e in hist])
+	s = set([e.miner for e in hist if e.state == 2])
 	return list(miners - s)
+
+for t in o.allTx:
+	check = checkHist(t.history,allMinerIds)
+	if check:
+		print t.id,check
+
+
+
+
+def chIds(node):
+	return set([n.tx.id for n in node.children])
+
+def allRec(nodes):
+	if not nodes:
+		return True
+	ch = chIds(nodes[0])
+	for n in nodes:
+		if ch != chIds(n):
+			return False
+	print 'go deeper'
+	for i in range(len(ch)):
+		if not allRec([list(set(n.children))[i] for n in nodes]):
+			return False
+	return True
+
+allRec([m.root for m in allMiners])
+
+
+
+
+def printSChain(acc,node,t=0):
+	i = node.tx.id
+	s = '  '*t + str(i)
+	if not node.tx.reissued and i in acc:
+		s+='*'
+	print s
+	for c in node.children:
+		printSChain(acc,c,t+1)
+
+m = g.nodes[0]['miner']
+acc = set([t.id for t in m.accepted])
+printSChain(acc,m.root)
+
+
