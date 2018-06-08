@@ -25,6 +25,7 @@ class Iota(miner.Miner):
 			return self.chain[target]
 		return None
 	
+	#TODO: copy this function over bitcoin.Bitcoin's addToChain (it should work there too)
 	#t is a tx (with pointer already set), and miner.py has already checked that we haven't seen it
 	#returns whether to broadcast tAdd to neighbors
 	def addToChain(self,tAdd,sender):
@@ -34,7 +35,7 @@ class Iota(miner.Miner):
 		self.orphans = []
 		first = True #this matters for non-orphan-broadcast and for not requesting old orphans from current "sender" who has nothing to do with them
 		#if we don't know BOTH of a tx's parents, it's an orphan
-		#we don't chain orphans; so during each addToChain we have to try to hookup/mark-as-PRE/add-to-self.chain/rebroadcast every orphan
+		#we don't chain orphans; so during each addToChain we have to try to hookup/mark-as-PRE/add-to-self.chain/broadcast every orphan
 		for n in temp: #for new node ("first" is True) and all orphans ("first" is False)
 			t = n.tx
 			parents = [(self.findInChain(p),p) for p in t.pointers]
@@ -42,13 +43,13 @@ class Iota(miner.Miner):
 				if first:
 					broadcast.append(t)
 				t.addEvent(self.o.tick,self.id,tx.State.PRE) #note that, contrary to Bitcoin, Iota only marks tx as PRE when its not an orphan...
-				self.chain[tAdd.hash()] = newn
+				self.chain[t.hash()] = n
 				for parent,pointer in parents:
 					parent.children.append(n)
 			else:
 				self.orphans.append(n) #handle orphans as nodes (not just tx) so that we can build orphan chains from them
 				if first: #only for new orphan
-					assert sender != self.id
+					assert sender != self.id #if first and sender == self.id, then I'm processing a node I just created and I should never have created an orphan
 					for parent,pointer in parents:
 						if parent is None:
 							self.sendRequest(sender,pointer)
@@ -71,11 +72,13 @@ class Iota(miner.Miner):
 		for c in node.children:
 			ret += self.frontierRec(c)
 		return ret
-		
+	
+	#returns list of 1 or 2 parent tx for new tx
 	def getNewParents(self):
 		choices = self.frontierRec(self.root)
 		if self.root in choices and len(choices) >= 3:
 			choices.remove(self.root)
+		choices = [c.tx for c in choices]
 		l = len(choices)
 		if l < 3:
 			return choices
@@ -94,6 +97,7 @@ class Iota(miner.Miner):
 		
 	#returns True if both of node's parents are reachableByAll (means node is too deep to be not accepted/reachableByAll itself and needs reissue)
 	def needsReissue(self,node,reachable):
+		#return False #TODO; does this function work?
 		for p in node.tx.pointers:
 			if not self.reachableByAll(self.chain[p],reachable): #don't need to worry about excluding node itself
 				return False
@@ -106,9 +110,11 @@ class Iota(miner.Miner):
 	def makeTx(self):
 		newtx = tx.Tx(self.o.tick,self.id,self.o.idBag.getNextId())
 		parents = self.getNewParents()
-		assert parents #should always have at least one(genesis
+		assert parents #should always have at least one (genesis tx)
 		for parent in parents:
-			newtx.pointers.append(parent.tx.hash())
+			h = parent.hash()
+			assert h in self.chain
+			newtx.pointers.append(h)
 		self.sheep.add(newtx)
 		self.o.allTx.append(newtx)
 		return newtx
