@@ -32,8 +32,8 @@ def setupSim(o,mclass=miner.Miner):
 def runSim(g,o):
 	o.tick = 0
 	while True:
-		if o.tick % 20 == 0:
-			print o.tick
+		#if o.tick % 20 == 0:
+		#	print o.tick
 		o.idBag.clear()
 		for i in g.nodes:
 			g.nodes[i]['miner'].step(list(g.neighbors(i))) #process messages, populate reissues
