@@ -106,7 +106,7 @@ class Miner:
 	def postStep(self,adj):
 		if random.random() < self.o.txGenProb: #chance to gen tx (important that this happens AFTER processing messages)
 			newtx = self.makeTx() #ABSTRACT - make a new tx
-			#print "newTx",newtx.id
+			print "newTx",newtx.id
 			self.hadChangeLastStep = True
 			self.handleTx(newtx,self.id,adj)
 			self.checkAll()

@@ -5,6 +5,7 @@ class Node:
 	def __init__(self,t):
 		self.tx = t
 		self.children = []
+		self.reachable = set() #set of nodes, populate when attaching a new node to its parent's children. Populate with parent and parent's reachable!
 
 class Iota(miner.Miner):
 	def __init__(self,i,gen,g,o):
@@ -46,6 +47,7 @@ class Iota(miner.Miner):
 				self.chain[t.hash()] = n
 				for parent,pointer in parents:
 					parent.children.append(n)
+					n.reachable |= set([parent]) | parent.reachable
 			else:
 				self.orphans.append(n) #handle orphans as nodes (not just tx) so that we can build orphan chains from them
 				if first: #only for new orphan
@@ -55,14 +57,6 @@ class Iota(miner.Miner):
 							self.sendRequest(sender,pointer)
 			first = False
 		return broadcast
-
-	#returns list of nodes reachable from a frontier node
-	def frontReachRec(self,node):
-		#use pointers and self.chain (as opposed to children)
-		ret = [node]
-		for p in node.tx.pointers:
-			ret += self.frontReachRec(self.chain[p])
-		return ret
 		
 	#returns list frontier nodes
 	def frontierRec(self,node):
@@ -89,17 +83,19 @@ class Iota(miner.Miner):
 		return [choices[i],choices[j]]
 		
 	#returns whether node is reachable by all frontier nodes that are keys in reachable
-	def reachableByAll(self,node,reachable):
-		for front in reachable:
-			if node not in reachable[front]:
+	#fronts is list of frontier nodes (with front.reachable)
+	def reachableByAll(self,node,fronts):
+		for front in fronts:
+			if node not in front.reachable:
 				return False
 		return True
 		
 	#returns True if both of node's parents are reachableByAll (means node is too deep to be not accepted/reachableByAll itself and needs reissue)
-	def needsReissue(self,node,reachable):
-		#return False #TODO; does this function work?
+	#fronts is list of frontier nodes (with front.reachable)
+	def needsReissue(self,node,fronts):
+		return False #TODO; does this function work?
 		for p in node.tx.pointers:
-			if not self.reachableByAll(self.chain[p],reachable): #don't need to worry about excluding node itself
+			if not self.reachableByAll(self.chain[p],fronts): #don't need to worry about excluding node itself
 				return False
 		return True
 
@@ -138,11 +134,9 @@ class Iota(miner.Miner):
 	#check all nodes for consensus (runs an implicit "tau" on each node, but all at once because it's faster)
 	def checkAll(self):
 		self.reissue = set() #only reset when you checkAll so that it stays full
-		reachable = {}
-		for front in self.frontierRec(self.root):
-			reachable[front] = set(self.frontReachRec(front))
+		fronts = self.frontierRec(self.root)
 		for node in self.chain.values(): #go through all nodes
-			if self.reachableByAll(node,reachable):
+			if self.reachableByAll(node,fronts):
 				if node.tx not in self.accepted:
 					node.tx.addEvent(self.o.tick,self.id,tx.State.CONSENSUS)
 					self.accepted.add(node.tx)
@@ -152,7 +146,7 @@ class Iota(miner.Miner):
 				if node.tx in self.accepted:
 					node.tx.addEvent(self.o.tick,self.id,tx.State.DISCONSENSED)
 					self.accepted.remove(node.tx)
-				if node.tx in self.sheep and self.needsReissue(node,reachable):
+				if node.tx in self.sheep and self.needsReissue(node,fronts):
 					self.reissue.add(node.tx.id)
 
 	#overseer will call this to tell the miner that it doesn't have to shepherd an id anymore
