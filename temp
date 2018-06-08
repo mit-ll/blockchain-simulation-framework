@@ -1,6 +1,6 @@
-import sim,overseer,plot,bitcoin,random
+import sim,overseer,plot,bitcoin,random,iota
 o = overseer.Overseer()
-g = sim.makeGraph(o,bitcoin.Bitcoin)
+g = sim.setupSim(o,iota.Iota)#(o,bitcoin.Bitcoin)
 sim.runSim(g,o)
 #sim.reports(g,o)
 
@@ -37,10 +37,14 @@ def t(i=None):
 
 t(0)
 
+
+
+
 sim.reports(g,o)
 s = [x for x in o.allTx if x.stats]
 sorted([(x.id,x.stats['maxTime']) for x in s],key=lambda x:x[1],reverse=True)
 sim.showHist(s[2])
+
 
 
 

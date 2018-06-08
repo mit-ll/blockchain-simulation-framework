@@ -70,8 +70,8 @@ class Miner:
 
 	def handleTx(self,t,sender,adj):
 		self.seen[t.hash()] = t
-		if self.process(t,sender): #ABSTRACT - process tx
-			self.broadcast(adj,t) #broadcast new/first-time-seen-NOT-ORPHAN tx only
+		for x in self.process(t,sender): #ABSTRACT - process tx
+			self.broadcast(adj,x) #broadcast new/first-time-seen-NOT-ORPHAN tx only
 	
 	#adj is adjacent miners
 	def step(self,adj):
@@ -106,6 +106,7 @@ class Miner:
 	def postStep(self,adj):
 		if random.random() < self.o.txGenProb: #chance to gen tx (important that this happens AFTER processing messages)
 			newtx = self.makeTx() #ABSTRACT - make a new tx
+			print "newTx",newtx.id
 			self.hadChangeLastStep = True
 			self.handleTx(newtx,self.id,adj)
 			self.checkAll()
@@ -129,11 +130,10 @@ class Miner:
 		return False
 
 	#update view
-	#run tau-func on all tx
-	#return True if should broadcast, False otherwise
+	#return list of tx to broadcast
 	def process(self,t,sender):
 		t.addEvent(self.o.tick,self.id,tx.State.CONSENSUS)
-		return True
+		return [t]
 
 	#check all nodes for consensus (calling Tau)
 	def checkAll(self):

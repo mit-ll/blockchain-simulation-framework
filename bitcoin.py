@@ -73,6 +73,7 @@ class Bitcoin(miner.Miner):
 		#	add this to orphan blocks, then query peer we got this from for 1st missing orphan block in prev chain; done with block
 		#	(also, when handling orphan blocks:) For each orphan block for which this block is its prev, run all these steps (including this one) recursively on that orphan
 		#keep list of orphan nodes, still put them in self.chain so we have pointers to them, and whenever we get a new node, check orphans to see if it fits!
+		#TODO handling orphans like this might not be correct... maybe do it like Iota?
 		newn = Node(tAdd)
 		self.chain[tAdd.hash()] = newn
 		temp = [newn] + self.orphans[:]
@@ -93,7 +94,10 @@ class Bitcoin(miner.Miner):
 				parent.children.append(n)
 		#(Being a sheep and being an orphan are mutually exclusive; new nodes are added to originator's view, rooted at the genesis block)
 			first = False
-		return broadcast
+		if broadcast:
+			return [tAdd]
+		else:
+			return []
 
 	#returns maxDepth
 	#if maxDepth is > 0, will mark tx as accepted if they are in the deepest chain and at least 6 deep (will also add sheep to self.reissue if appropriate)
@@ -116,10 +120,10 @@ class Bitcoin(miner.Miner):
 					node.tx.addEvent(self.o.tick,self.id,tx.State.CONSENSUS)
 					self.accepted.add(node.tx)
 				if node.tx.id in self.reissue:
-					self.reissue.remove(node.tx.id) #accepted, so it doesn't need to be reiussed
+					self.reissue.remove(node.tx.id) #accepted, so it doesn't need to be reiussed (this will happen because reissued tx are still saved in old forks)
 			elif mx != maxDepth:
 				if node.tx in self.accepted:
-					node.tx.addEdfvent(self.o.tick,self.id,tx.State.DISCONSENSED)
+					node.tx.addEvent(self.o.tick,self.id,tx.State.DISCONSENSED)
 					self.accepted.remove(node.tx)
 				#below:first condition says that it's a sheep on an unaccepted fork, second condition says whether it's time to rebroadcast (~"trunk" is 6+ deep)
 				if node.tx in self.sheep and mx < maxDepth - self.o.bitcoinAcceptDepth:
@@ -155,8 +159,7 @@ class Bitcoin(miner.Miner):
 		return False
 
 	#update view
-	#run tau-func on all tx
-	#return True if should broadcast, False otherwise
+	#return list of tx to broadcast
 	def process(self,t,sender):
 		return self.addToChain(t,sender)
 

@@ -1,9 +1,10 @@
-import miner,overseer,plot,tx,bitcoin,random,math,time
+import miner,overseer,plot,tx,bitcoin,random,math,time,iota
 import networkx as nx
 import matplotlib.pyplot as plt
 
 #TODO: different topologies
-def makeGraph(o,mclass=miner.Miner):
+#returns graph with Miner objects attached to nodes
+def setupSim(o,mclass=miner.Miner):
 	#TEST
 	if False:#True: # while python sim.py; do :; done
 		degree = random.uniform(.125,.175)
@@ -19,7 +20,7 @@ def makeGraph(o,mclass=miner.Miner):
 		#g=nx.wheel_graph(o.numMiners) # most (all?) nodes connected to one node; otherwise connected randomly
 	
 	if not nx.is_connected(g): #make sure graph is connected
-		return makeGraph(o,mclass)
+		return setupSim(o,mclass)
 	else:
 		gen = tx.Tx(-1,None,o.idBag.getNextId()) #genesis tx
 		o.allTx.append(gen)
@@ -31,6 +32,8 @@ def makeGraph(o,mclass=miner.Miner):
 def runSim(g,o):
 	o.tick = 0
 	while True:
+		if o.tick % 20 == 0:
+			print o.tick
 		o.idBag.clear()
 		for i in g.nodes:
 			g.nodes[i]['miner'].step(list(g.neighbors(i))) #process messages, populate reissues
@@ -131,7 +134,6 @@ def reports(g,o):
 		
 	#NOTE: txs with same id are collapsed into the first instance of that id for probability distributions, but not for disconsensed/unconsensed
 	
-	#TODO
 	#	The simulation will output probability distributions for each transactions. Namely, the time it took for each miner to accept it and the time it took for all miners to accept it.
 	seenfirst = set() #set of tx.ids for which we have handled the original reissued tx and will ignore all other tx with that id
 	for x in o.allTx:
@@ -152,12 +154,15 @@ def reports(g,o):
 if __name__ == "__main__":
 	start = time.time()
 	o = overseer.Overseer()
-	g = makeGraph(o,bitcoin.Bitcoin)#g = makeGraph(o)
+	g = setupSim(o,iota.Iota)#g = setupSim(o,bitcoin.Bitcoin)#g = setupSim(o)
 	#plot.plotGraph(g)
 	runSim(g,o)
 	reports(g,o)
 	print time.time() - start
 
-
+#Time trials
+#No. of miners:		200	 1000	5000	10000
+#  Naive miners:	7s	 73s	6226s	"Killed"
+#  Bitcoin:			12s	 160s			"Killed"
 
 
