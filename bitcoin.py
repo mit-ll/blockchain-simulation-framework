@@ -67,7 +67,7 @@ class Bitcoin(miner.Miner):
 			return self.childOfOrphan(parent.tx)
 
 	#t is a tx (with pointer already set), and miner.py has already checked that we haven't seen it
-	#returns whether to broadcast tAdd to neighbors
+	#returns list of tx to broadcast to neighbors
 	def addToChain(self,tAdd,sender):
 		#from bitcoin wiki (https://en.bitcoin.it/wiki/Protocol_rules):
 		#	add this to orphan blocks, then query peer we got this from for 1st missing orphan block in prev chain; done with block

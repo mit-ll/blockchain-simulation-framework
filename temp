@@ -6,12 +6,17 @@ sim.runSim(g,o)
 
 
 
+
 allMinerIds = set()
 allMiners=[]
 for n in g.nodes:
 	m = g.nodes[n]['miner']
 	allMinerIds.add(m.id)
 	allMiners.append(m)
+
+iota.plotTangle(allMiners[0].root)
+
+
 
 
 

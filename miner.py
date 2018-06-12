@@ -62,7 +62,7 @@ class Miner:
 						print targetHash,"->",t.id,t.origin,t.birthday,t.pointers
 			assert False
 			
-		self.g.nodes[recipient]['miner'].pushMsg(msg,random.randint(0,10)) #TODO parameterize delay
+		self.g.nodes[recipient]['miner'].pushMsg(msg,random.randint(0,10)) #TODO parameterize delay distribution
 
 	#so subclasses don't have to know about Message/Type classes
 	def sendRequest(self,recipient,targetHash):
@@ -106,7 +106,7 @@ class Miner:
 	def postStep(self,adj):
 		if random.random() < self.o.txGenProb: #chance to gen tx (important that this happens AFTER processing messages)
 			newtx = self.makeTx() #ABSTRACT - make a new tx
-			print "newTx",newtx.id
+			#print "newTx",newtx.id
 			self.hadChangeLastStep = True
 			self.handleTx(newtx,self.id,adj)
 			self.checkAll()

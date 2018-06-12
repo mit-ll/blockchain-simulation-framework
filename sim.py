@@ -31,16 +31,19 @@ def setupSim(o,mclass=miner.Miner):
 
 def runSim(g,o):
 	o.tick = 0
+	adjs = {} #cache g.neighbors; REPLACE for dynamic topology!
 	while True:
 		#if o.tick % 20 == 0:
 		#	print o.tick
 		o.idBag.clear()
 		for i in g.nodes:
-			g.nodes[i]['miner'].step(list(g.neighbors(i))) #process messages, populate reissues
+			if i not in adjs:
+				adjs[i] = list(g.neighbors(i))
+			g.nodes[i]['miner'].step(adjs[i]) #process messages, populate reissues
 		for i in g.nodes:
 			g.nodes[i]['miner'].checkReissues() #add reissues to o.idBag
 		for i in g.nodes:
-			g.nodes[i]['miner'].postStep(list(g.neighbors(i))) #if win PoW lottery, gen new tx
+			g.nodes[i]['miner'].postStep(adjs[i]) #if win PoW lottery, gen new tx
 		for i in g.nodes:
 			g.nodes[i]['miner'].flushMsgs()
 		
@@ -154,15 +157,15 @@ def reports(g,o):
 if __name__ == "__main__":
 	start = time.time()
 	o = overseer.Overseer()
-	g = setupSim(o,iota.Iota)#g = setupSim(o,bitcoin.Bitcoin)#g = setupSim(o)
+	g = setupSim(o,bitcoin.Bitcoin)#g = setupSim(o)
 	#plot.plotGraph(g)
 	runSim(g,o)
 	reports(g,o)
 	print time.time() - start
 
-#Time trials
+#Time trials (parens is w/o caching adj)
 #No. of miners:		200	 1000	5000	10000
-#  Naive miners:	7s	 73s	6226s	"Killed"
-#  Bitcoin:			12s	 160s			"Killed"
+#  Naive miners:	(7s) (73s)	(6226s)	"Killed"
+#  Bitcoin:			9s	 137s			"Killed"
 
 
