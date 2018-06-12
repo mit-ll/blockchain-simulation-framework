@@ -1,6 +1,7 @@
 import sim,overseer,plot,bitcoin,random,iota
 o = overseer.Overseer()
-g = sim.setupSim(o,iota.Iota)#(o,bitcoin.Bitcoin)
+g = sim.setupSim(o,iota.Iota)
+#g = sim.setupSim(o,bitcoin.Bitcoin)
 sim.runSim(g,o)
 #sim.reports(g,o)
 
@@ -15,6 +16,7 @@ for n in g.nodes:
 	allMiners.append(m)
 
 iota.plotTangle(allMiners[0].root)
+#bitcoin.plotChain(allMiners[0])
 
 
 

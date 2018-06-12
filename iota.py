@@ -1,26 +1,26 @@
 import random,tx,miner,plot
 import networkx as nx
 
+#note: this doesn't work for bitcoin because of dupe ids
 def nodesToNx(node,g=None):
 	i = node.tx.id
 	if g is None:
 		g = nx.Graph()
 		if i not in g: #only need to do this for the root
 			g.add_node(i)
-			g.nodes[i]['parents'] = set([-1])
+			g.nodes[i]['children'] = len(node.children)
 	for c in node.children:
 		ci = c.tx.id
 		if ci not in g:
 			g.add_node(ci)
-			g.nodes[ci]['parents'] = set()
-		g.nodes[ci]['parents'] |= set([i])
+			g.nodes[ci]['children'] = len(c.children)
 		g.add_edge(ci,i)
 		nodesToNx(c,g)
 	return g
 
 def plotTangle(root):
 	v = nodesToNx(root)
-	plot.simplePlot(v,{i:(i*2,len(v.nodes[i]['parents'])-1 if i%2 else (len(v.nodes[i]['parents'])-1)*-1)for i in v.nodes})
+	plot.simplePlot(v,{i:(i*2,v.nodes[i]['children']-1 if i%2 else (v.nodes[i]['children']-1)*-1)for i in v.nodes})
 			
 
 #node in the bitcoin miner's personal view of the blockchain
@@ -96,11 +96,19 @@ class Iota(miner.Miner):
 	#returns list of 1 or 2 parent tx for new tx
 	def getNewParents(self):
 		choices = list(self.front)
-		#print "num frontier:",len(choices)
+		print "num frontier:",len(choices)
 		if self.root in choices and len(choices) >= 3:
 			choices.remove(self.root)
 		choices = [c.tx for c in choices]
 		l = len(choices)
+		assert l > 0
+
+		#OOPS this doesn't do anything by definition: if there's only one frontier then all nodes are well-connected...
+		if l == 1: #need to reach back into "pre-consensus" nodes to flesh out choices
+			choices += [n.tx for n in self.chain.values() if not self.reachableByAll(n)]
+			choices = list(set(choices))
+			print "\tadding precons nodes to choices. new len:",len(choices)
+
 		if l < 3:
 			return choices
 		i=j=0
