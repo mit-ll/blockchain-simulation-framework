@@ -8,7 +8,7 @@ def nodesToNx(node,g=None):
 		g = nx.Graph()
 		if i not in g: #only need to do this for the root
 			g.add_node(i)
-			g.nodes[i]['children'] = len(node.children)
+			g.nodes[i]['children'] = 1#len(node.children)
 	for c in node.children:
 		ci = c.tx.id
 		if ci not in g:
@@ -96,21 +96,16 @@ class Iota(miner.Miner):
 	#returns list of 1 or 2 parent tx for new tx
 	def getNewParents(self):
 		choices = list(self.front)
-		print "num frontier:",len(choices)
+		#print "num frontier:",len(choices)
 		if self.root in choices and len(choices) >= 3:
 			choices.remove(self.root)
 		choices = [c.tx for c in choices]
 		l = len(choices)
 		assert l > 0
-
-		#OOPS this doesn't do anything by definition: if there's only one frontier then all nodes are well-connected...
-		if l == 1: #need to reach back into "pre-consensus" nodes to flesh out choices
-			choices += [n.tx for n in self.chain.values() if not self.reachableByAll(n)]
-			choices = list(set(choices))
-			print "\tadding precons nodes to choices. new len:",len(choices)
-
-		if l < 3:
+		if l == 2 or choices == [self.root.tx]:
 			return choices
+		elif l == 1:
+			return [choices[0],random.choice([n.tx for n in self.chain.values() if n.tx not in choices])] #if there's only one frontier node, we select another node at random
 		i=j=0
 		while i == j:
 			i = random.randint(0,l-1)
@@ -128,7 +123,7 @@ class Iota(miner.Miner):
 	#returns True if both of node's parents are reachableByAll (means node is too deep to be not accepted/reachableByAll itself and needs reissue)
 	#fronts is list of frontier nodes (with front.reachable)
 	def needsReissue(self,node):
-		return False #TODO; does this function work?
+		#return False #TODO; does this function work?
 		for p in node.tx.pointers:
 			if not self.reachableByAll(self.chain[p]): #don't need to worry about excluding node itself
 				return False

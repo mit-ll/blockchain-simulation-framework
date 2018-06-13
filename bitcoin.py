@@ -1,5 +1,6 @@
 import random,tx,miner,plot
 import networkx as nx
+import matplotlib.pyplot as plt
 
 def printChain(node,acc=None,t=0):
 	s = '  '*t+str(node.tx.id)
@@ -9,28 +10,33 @@ def printChain(node,acc=None,t=0):
 	for c in node.children:
 		printChain(c,acc,t+1)
 
-def getNextFork(f,used):
+#output must match sign's sign unless sign == 0
+def getNextFork(f,used,sign):
 	i = 1
 	while True:
-		if (f + i) not in used:
-			return f + i
-		if (f - i) not in used:
-			return f - i
+		out = f + i
+		if out not in used:
+			if sign == 0 or (sign > 0 and out > 0) or (sign < 0 and out < 0):
+				return out
+		out = f - i
+		if out not in used:
+			if sign == 0 or (sign > 0 and out > 0) or (sign < 0 and out < 0):
+				return out
 		i += 1
 
 #d is depth (x coord)
 #f is current fork # (y coord)
-#used is set of currently used fork #s
 #nx.node ids must be hashes (otherwise not unique)
-def nodesToNx(miner,node,g=None,d=0,f=0,used=set()):
+def nodesToNx(miner,node,g=None,d=0,f=0,lasty=0):
 	i = node.tx.hash()
 	if g is None:
 		g = nx.Graph()
-		if i not in g: #only need to do this for the root
-			g.add_node(i)
-			g.nodes[i]['y'] = f
+		g.add_node(i)
+		g.nodes[i]['y'] = f
+		g.nodes[i]['id'] = node.tx.id
 	g.nodes[i]['x'] = d
 	forks = {} #maps nx.node id (hash) to fork
+	myused = set([0])
 	for c in node.children:
 		ci = c.tx.hash()
 		if ci not in g:
@@ -40,19 +46,26 @@ def nodesToNx(miner,node,g=None,d=0,f=0,used=set()):
 			assert f not in forks.values()
 			forks[ci] = f
 		else:
-			newf = getNextFork(f,used)
+			newf = getNextFork(f,myused,lasty)
+			assert not ((lasty < 0 and newf > 0) or (lasty > 0 and newf < 0))
 			forks[ci] = newf
-			used.add(newf)
+			myused.add(newf)
 	for c in node.children:
 		ci = c.tx.hash()
 		myf = forks[ci]
+		if node.tx.id == 23:
+			print "lasy:",g.nodes[i]['y'],"; newy:",myf
 		g.nodes[ci]['y'] = myf
-		nodesToNx(miner,c,g,d+1,myf,used)
+		g.nodes[ci]['id'] = c.tx.id
+		nodesToNx(miner,c,g,d+1,myf,g.nodes[i]['y'])
 	return g
 
 def plotChain(miner):
 	v = nodesToNx(miner,miner.root)
-	plot.simplePlot(v,{i:(v.nodes[i]['x'],v.nodes[i]['y']) for i in v.nodes})
+	p = {i:(v.nodes[i]['x'],v.nodes[i]['y']) for i in v.nodes}
+	l = {i:v.nodes[i]['id'] for i in v.nodes}
+	nx.draw_networkx(v,node_color='#ff6666',node_size=20,pos=p,labels=l)
+	plt.show()
 
 #end debug
 			
