@@ -3,5 +3,5 @@
     "txGenProb" : 0.0002,
     "maxTx" : 40,
     "bitcoinAcceptDepth" : 6,
-    "protocol" : "bitcoin"
+    "protocol" : "iota"
 }

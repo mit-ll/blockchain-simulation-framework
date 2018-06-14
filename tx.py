@@ -6,14 +6,12 @@ class Tx:
         self.origin = m
         self.id = i
         self.birthday = tick
-        self.pointers = []
+        self.pointers = []  # backpointer(s) are an inherent part of the tx, each miner takes it or leaves it as a whole
         self.history = []  # event history
         self.stats = {}  # filled in after sim for reports
 
-    # make sure not to include mutable properties like history!
     def hash(self):
-        s = ''.join(self.pointers)+str(self.id) + \
-            str(self.birthday)+str(self.origin)
+        s = ''.join(self.pointers)+str(self.id)+str(self.birthday)+str(self.origin)  # make sure not to include mutable properties like history!
         return hashlib.md5(s).hexdigest()
 
     def addEvent(self, ts, miner, state):
@@ -21,8 +19,6 @@ class Tx:
 
     def __str__(self):
         return str(self.id)+' '+str(self.origin)+' '+str(self.birthday)+' '+str(self.pointers)
-
-# backpointer is an inherent part of the tx, each miner takes it or leaves it as a whole
 
 
 class Event:

@@ -3,7 +3,7 @@ import random
 import bitcoin
 import iota
 
-# put all settings here; sim.py can initalize/change
+
 class IdBag:
     nextId = 0
 
@@ -26,16 +26,18 @@ class IdBag:
         else:
             return IdBag.nextId
 
-    # miner is miner object, not just id
     def addId(self, i, miner):
+        """miner is miner object, not just id"""
         self.bag.append((i, miner))  # stores id and pointer to miner
 
-    # clear at beginning of every tick
     def clear(self):
+        """clear at beginning of every tick"""
         self.bag = []
 
 
 class Overseer:
+    """put all settings here; sim.py can initalize/change with .load"""
+
     def __init__(self):
         self.tick = -1
         self.allTx = []
@@ -49,9 +51,9 @@ class Overseer:
         self.delayMu = 5
         self.delaySigma = 1.3
 
-    def load(self,fname):
+    def load(self, fname):
         data = None
-        with open(fname,'r') as f:
+        with open(fname, 'r') as f:
             data = json.load(f)
         if not data:
             return
@@ -77,11 +79,11 @@ class Overseer:
         return ret
 
     def getDelay(self):
-        return max(0,round(random.gauss(self.delayMu,self.delaySigma)))
+        return max(0, round(random.gauss(self.delayMu, self.delaySigma)))
 
     def __str__(self):
         return "Protocol: "+self.getMinerClass().name+"; Miners: "+str(self.numMiners)+"; Gen. Prob.: "+str(self.txGenProb)+"; MaxTx: "+str(self.maxTx)
-        
+
 
 # Notes
 # Setting message delay in ticks ties ticks to a certain real-world time span

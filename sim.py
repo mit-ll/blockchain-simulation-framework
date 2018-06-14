@@ -1,34 +1,17 @@
 import sys
 import random
-import math
 import time
 import os.path
-import matplotlib.pyplot as plt
 import networkx as nx
 import miner
 import overseer
-import plot
 import tx
-import bitcoin
-import iota
-
-# returns graph with Miner objects attached to nodes
 
 
 def setupSim(o):
-    # TEST
-    if False:  # True: # while python sim.py; do :; done
-        degree = random.uniform(.125, .175)
-        num = random.randint(o.numMiners, o.numMiners*2)
-        # chance = random.uniform(.0001,.001) #this is a pretty huge spread
-        mt = random.randint(o.maxTx, o.maxTx*2)
-        print "Miners:", num, "; Degree:", degree, "; MaxTx:", mt
-        o.maxTx = mt
-        g = nx.random_geometric_graph(num, degree)
-    else:
-        g = nx.random_geometric_graph(o.numMiners, 0.125)
-        # g=nx.random_lobster(o.numMiners,1,1) # interesting chain-like shape
-        # g=nx.wheel_graph(o.numMiners) # most (all?) nodes connected to one node; otherwise connected randomly
+    """returns graph with Miner objects attached to nodes"""
+    # TODO: different topologies
+    g = nx.random_geometric_graph(o.numMiners, 0.125)
 
     if not nx.is_connected(g):  # make sure graph is connected
         return setupSim(o)
@@ -37,7 +20,6 @@ def setupSim(o):
         o.allTx.append(gen)
         for i in g.nodes:
             g.nodes[i]['miner'] = o.getMinerClass()(i, gen, g, o)  # include genesis tx
-        # populate edges with delays ("weights")?
         return g
 
 
@@ -45,19 +27,15 @@ def runSim(g, o):
     o.tick = 0
     adjs = {}  # cache g.neighbors; REPLACE for dynamic topology!
     while True:
-        # if o.tick % 20 == 0:
-        #	print o.tick
         o.idBag.clear()
         for i in g.nodes:
             if i not in adjs:
                 adjs[i] = list(g.neighbors(i))
-            # process messages, populate reissues
-            g.nodes[i]['miner'].step(adjs[i])
+            g.nodes[i]['miner'].step(adjs[i])  # process messages, populate reissues
         for i in g.nodes:
             g.nodes[i]['miner'].checkReissues()  # add reissues to o.idBag
         for i in g.nodes:
-            # if win PoW lottery, gen new tx
-            g.nodes[i]['miner'].postStep(adjs[i])
+            g.nodes[i]['miner'].postStep(adjs[i])  # if win PoW lottery, gen new tx
         for i in g.nodes:
             g.nodes[i]['miner'].flushMsgs()
 
@@ -80,32 +58,9 @@ def addToTimes(times, miner, t, mx):
         mx = t
     return mx
 
-# takes a transaction and shows/returns a histogram of how long it took each miner to accept it
-
-
-def showHist(t):
-    if not t.stats:
-        return None
-    data = t.stats['times'].values()
-    plt.hist(data)
-    plt.show()
-    return data  # maybe just return t.stats['times']?
-
-# shows/returns a histogram of the max time it took each transaction to be accepted by all miners
-
-
-def showMaxHist(o):
-    maxes = [t.stats['maxTime'] for t in o.allTx if t.pointers and t.stats]
-    assert maxes
-    # ,bins=range(int(math.floor(min(maxes)/10.0))*10,int(math.ceil(max(maxes)/10.0))*10,2))
-    plt.hist(maxes)
-    plt.show()
-    return maxes
-
-# populates tx (in o.allTx) with individual report data
-
 
 def reports(g, o):
+    """populates tx (in o.allTx) with individual report data"""
     allMinerIds = set()
     allMiners = []
     for n in g.nodes:
@@ -113,9 +68,9 @@ def reports(g, o):
         allMinerIds.add(m.id)
         allMiners.append(m)
 
-    disc = [] # disconsensed tx (consensed once, then unconsensed) (may overlap with cons, unc, or other)
-    unc = [] # unconsensed tx (consensed by 1 or more but not all miners)
-    cons = [] # consensed tx (consensed by all miners) (allTx = cons + unc + other)
+    disc = []  # disconsensed tx (consensed once, then unconsensed) (may overlap with cons, unc, or other)
+    unc = []  # unconsensed tx (consensed by 1 or more but not all miners)
+    cons = []  # consensed tx (consensed by all miners) (allTx = cons + unc + other)
     other = []  # not consensed by any miner (different from unconsensed)
     first = {}  # maps id to first isse of that id
     for t in o.allTx:
@@ -132,13 +87,7 @@ def reports(g, o):
         if t.id not in first:
             first[t.id] = t
         if t.id in first and first[t.id].hash() != t.hash():
-            # append tx history to first instance of tx's
-            first[t.id].history += t.history
-    #if disc:
-        #print "Some tx lost consensus after gaining it:", [t.id for t in disc]
-    #if unc:
-        #print "Consensus has still not been reached for some tx:", [
-            #t.id for t in unc]
+            first[t.id].history += t.history  # append tx history to first instance of tx's
 
     # NOTE: txs with same id are collapsed into the first instance of that id for probability distributions, but not for disconsensed/unconsensed
 
@@ -157,9 +106,8 @@ def reports(g, o):
         if mx > 0:  # if mx is still -99, no tx with that id was ever consensed
             x.stats['times'] = times
             x.stats['maxTime'] = mx
-    #showMaxHist(o)
 
-    #TODO write to file (json? pickle?)
+    # TODO write to file (json? pickle?)
 
 
 if __name__ == "__main__":
@@ -170,17 +118,16 @@ if __name__ == "__main__":
     if os.path.isfile(fname):
         o.load(fname)
     else:
-        print "Settings file",fname,"does not exist; using defaults"
+        print "Settings file", fname, "does not exist; using defaults"
     print o
     start = time.time()
     g = setupSim(o)
-    # plot.plotGraph(g)
     runSim(g, o)
     print time.time() - start
     reports(g, o)
 
 # Time trials (parens is w/o caching adj)
 # Target: 50 tx
-# No. of miners:		200	 1000	5000	10000
+# No. of miners:	200	 1000	5000	10000
 #  Naive miners:	(7s) (73s)	(6226s)	"Killed"
 #  Bitcoin:			9s	 137s			"Killed"

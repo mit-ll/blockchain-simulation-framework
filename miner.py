@@ -27,9 +27,7 @@ class Miner:
         self.seen[gen.hash()] = gen
         self.hadChangeLastStep = False
 
-    # msg is Message object
     def pushMsg(self, msg, delay=0):
-        assert type(msg) != str
         self.preq.append([msg, delay])
 
     def flushMsgs(self):
@@ -40,46 +38,33 @@ class Miner:
         qcopy = self.queue[:]
         self.queue = []
         ret = []
-        for msg, i in qcopy:
-            i -= 1
-            if i < 1:
+        for msg, d in qcopy:
+            d -= 1
+            if d < 1:
                 ret.append(msg)
             else:
-                self.pushMsg(msg, i)
+                self.pushMsg(msg, d)
         return ret  # should a miner only receive 1 message at a time, or can it do all at once like this?
 
-    # broadcast tx to all adjacent miners
     def broadcast(self, adj, t):
+        """broadcast tx to all adjacent miners"""
         for i in adj:
             self.sendMsg(i, Message(self.id, Type.BLOCK, t))
 
     def sendMsg(self, recipient, msg):
-
-        # DEBUG
-        if msg.type == Type.BLOCK and set(msg.content.pointers) - set(self.seen):
-            diff = list(set(msg.content.pointers) - set(self.seen))
-            print self.id, "is sending", msg.content.id, "to", recipient, "but it hasn't seen hash(es):", diff
-            print "Unhashed pointer(s):"
-            for targetHash in diff:
-                for t in self.o.allTx:
-                    if t.hash() == targetHash:
-                        print targetHash, "->", t.id, t.origin, t.birthday, t.pointers
-            assert False
-
+        assert not (msg.type == Type.BLOCK and set(msg.content.pointers) - set(self.seen)) #shouldn't send a tx if I don't know tx for all of its pointers
         self.g.nodes[recipient]['miner'].pushMsg(msg, self.o.getDelay())
 
-    # so subclasses don't have to know about Message/Type classes
-    def sendRequest(self, recipient, targetHash):
+    def sendRequest(self, recipient, targetHash):  # so subclasses don't have to know about Message/Type classes
         self.sendMsg(recipient, Message(self.id, Type.REQUEST, targetHash))
 
     def handleTx(self, t, sender, adj):
         self.seen[t.hash()] = t
         for x in self.process(t, sender):  # ABSTRACT - process tx
-            # broadcast new/first-time-seen-NOT-ORPHAN tx only
-            self.broadcast(adj, x)
+            self.broadcast(adj, x)  # broadcast new/first-time-seen-NOT-ORPHAN tx only
 
-    # adj is adjacent miners
     def step(self, adj):
+        """adj is adjacent miners"""
         forceSheepCheck = self.hadChangeLastStep
         self.hadChangeLastStep = False
         needToCheck = False
@@ -93,29 +78,15 @@ class Miner:
                 self.handleTx(t, msg.sender, adj)
             elif msg.type == Type.REQUEST:  # requests are issued by other miners
                 targetHash = msg.content
-
-                # DEBUG
-                if targetHash not in self.seen:
-                    print self.id, "doesn't know hash", targetHash, "requested by", msg.sender, "on step", self.o.tick
-                    print "Unhashed target:"
-                    for t in self.o.allTx:
-                        if t.hash() == targetHash:
-                            print t.id, t.origin, t.birthday, t.pointers
-                    assert False  # currently should NEVER get here; should be caught in assertFalse in DEBUG section of sendMsg
-
-                # if it isn't there, there's a problem
+                assert targetHash in self.seen # I should never get a request for a tx I haven't seen
                 requestedTx = self.seen[targetHash]
-                self.sendMsg(msg.sender, Message(
-                    self.id, Type.BLOCK, requestedTx))
-        # have to check every time if has sheep...
-        if needToCheck or (self.hasSheep() and forceSheepCheck):
+                self.sendMsg(msg.sender, Message(self.id, Type.BLOCK, requestedTx))
+        if needToCheck or (self.hasSheep() and forceSheepCheck):  # have to check every time if has sheep...
             self.checkAll()
 
     def postStep(self, adj):
-        # chance to gen tx (important that this happens AFTER processing messages)
-        if random.random() < self.o.txGenProb:
+        if random.random() < self.o.txGenProb:  # chance to gen tx (important that this happens AFTER processing messages)
             newtx = self.makeTx()  # ABSTRACT - make a new tx
-            #print "newTx",newtx.id
             self.hadChangeLastStep = True
             self.handleTx(newtx, self.id, adj)
             self.checkAll()
@@ -123,31 +94,33 @@ class Miner:
     # ==ABSTRACT====================================
     # copy and overwrite these method in subclasses!
 
-    # return tx
-    # make sure to append to self.o.allTx
     def makeTx(self):
+        """return tx
+        make sure to append to self.o.allTx
+        """
         newtx = tx.Tx(self.o.tick, self.id, self.o.idBag.getNextId())
         self.o.allTx.append(newtx)
         return newtx
 
-    # a chance for the miner to put its need-to-reissue tx in o.IdBag
     def checkReissues(self):
+        """a chance for the miner to put its need-to-reissue tx in o.IdBag"""
         return None
 
-    # returns whether miner has sheep
     def hasSheep(self):
+        """returns whether miner has sheep"""
         return False
 
-    # update view
-    # return list of tx to broadcast
     def process(self, t, sender):
+        """update view
+        return list of tx to broadcast
+        """
         t.addEvent(self.o.tick, self.id, tx.State.CONSENSUS)
         return [t]
 
-    # check all nodes for consensus (calling Tau)
     def checkAll(self):
+        """check all nodes for consensus (calling Tau)"""
         return None
 
-    # overseer will call this to tell the miner that it doesn't have to shepherd an id anymore
     def removeSheep(self, i):
+        """overseer will call this to tell the miner that it doesn't have to shepherd an id anymore"""
         return None
