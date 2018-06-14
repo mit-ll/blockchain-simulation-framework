@@ -30,7 +30,7 @@ def plotTangle(root):
                             2 else (v.nodes[i]['children']-1)*-1)for i in v.nodes})
 
 
-# node in the bitcoin miner's personal view of the blockchain
+# node in the miner's personal view of the blockchain
 class Node:
     def __init__(self, t):
         self.tx = t
@@ -39,6 +39,8 @@ class Node:
 
 
 class Iota(miner.Miner):
+    name = "Iota"
+
     def __init__(self, i, gen, g, o):
         miner.Miner.__init__(self, i, gen, g, o)  # calls self.start()
         self.root = Node(gen)

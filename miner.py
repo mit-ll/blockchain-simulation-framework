@@ -15,11 +15,10 @@ class Type:
 
 
 class Miner:
-    nextId = 0
+    name = "Naive"
 
     def __init__(self, i, gen, g, o):
         self.id = i
-        #Miner.nextId += 1
         self.g = g
         self.o = o
         self.preq = []  # to prevent miners that execute later in a step from acting on msgs from miners that executed earlier that step
@@ -67,8 +66,7 @@ class Miner:
                         print targetHash, "->", t.id, t.origin, t.birthday, t.pointers
             assert False
 
-        # TODO parameterize delay distribution
-        self.g.nodes[recipient]['miner'].pushMsg(msg, random.randint(0, 10))
+        self.g.nodes[recipient]['miner'].pushMsg(msg, self.o.getDelay())
 
     # so subclasses don't have to know about Message/Type classes
     def sendRequest(self, recipient, targetHash):

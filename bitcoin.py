@@ -107,6 +107,8 @@ class Node:
 
 
 class Bitcoin(miner.Miner):
+    name = "Bitcoin"
+    
     def __init__(self, i, gen, g, o):
         miner.Miner.__init__(self, i, gen, g, o)  # calls self.start()
         self.root = Node(gen)
