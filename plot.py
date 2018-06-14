@@ -61,8 +61,6 @@ def nodesToNx(miner, node, g=None, d=0, f=0, lasty=0):
     for c in node.children:
         ci = c.tx.hash()
         myf = forks[ci]
-        if node.tx.id == 23:
-            print "lasy:", g.nodes[i]['y'], "; newy:", myf
         g.nodes[ci]['y'] = myf
         g.nodes[ci]['id'] = c.tx.id
         nodesToNx(miner, c, g, d+1, myf, g.nodes[i]['y'])
@@ -101,6 +99,7 @@ def iotaNodesToNx(node, g=None):  # note: this doesn't work for bitcoin because 
 def plotTangle(root):
     v = iotaNodesToNx(root)
     simplePlot(v, {i: (i*2, v.nodes[i]['children']-1 if i % 2 else (v.nodes[i]['children']-1)*-1)for i in v.nodes})
+
 # == end iota =======================
 
 

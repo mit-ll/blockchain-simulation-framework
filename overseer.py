@@ -1,3 +1,4 @@
+import os.path
 import json
 import random
 import bitcoin
@@ -38,11 +39,12 @@ class IdBag:
 class Overseer:
     """put all settings here; sim.py can initalize/change with .load"""
 
-    def __init__(self):
+    def __init__(self,fname=None):
         self.tick = -1
         self.allTx = []
         self.idBag = IdBag()
 
+        #defaults
         self.protocol = 'bitcoin'
         self.numMiners = 200
         self.txGenProb = .0001667  # once every 10 minutes, assuming 1 tick is 100ms
@@ -50,6 +52,13 @@ class Overseer:
         self.bitcoinAcceptDepth = 6
         self.delayMu = 5
         self.delaySigma = 1.3
+        self.outFile = 'reportout.p'
+
+        if fname:
+            if os.path.isfile(fname):
+                self.load(fname)
+            else:
+                print "Settings file", fname, "does not exist; using defaults"
 
     def load(self, fname):
         data = None
@@ -71,6 +80,8 @@ class Overseer:
             self.delayMu = data['delayMu']
         if 'delaySigma' in data:
             self.delaySigma = data['delaySigma']
+        if 'outFile' in data:
+            self.outFile = data['outFile']
 
     def getMinerClass(self):
         ret = bitcoin.Bitcoin

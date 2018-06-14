@@ -1,9 +1,9 @@
 import random
+import networkx as nx
+import matplotlib.pyplot as plt
 import tx
 import miner
 import plot
-import networkx as nx
-import matplotlib.pyplot as plt
 
 
 def deepestChildren(node):

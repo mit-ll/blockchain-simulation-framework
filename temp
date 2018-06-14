@@ -1,9 +1,9 @@
-import sim,overseer,plot,bitcoin,random,iota
-o = overseer.Overseer()
+import sim,overseer,plot,bitcoin,random,iota,analysis
+o = overseer.Overseer('sim.json')
 g = sim.setupSim(o)
 sim.runSim(g,o)
-#sim.reports(g,o)
-
+sim.reports(g,o)
+r = analysis.analyze('out.p')
 
 
 

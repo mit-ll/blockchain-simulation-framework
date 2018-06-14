@@ -1,7 +1,7 @@
 import sys
 import random
 import time
-import os.path
+import pickle
 import networkx as nx
 import miner
 import overseer
@@ -91,7 +91,6 @@ def reports(g, o):
 
     # NOTE: txs with same id are collapsed into the first instance of that id for probability distributions, but not for disconsensed/unconsensed
 
-    #	The simulation will output probability distributions for each transactions. Namely, the time it took for each miner to accept it and the time it took for all miners to accept it.
     seenfirst = set()  # set of tx.ids for which we have handled the original reissued tx and will ignore all other tx with that id
     for x in o.allTx:
         if x.id in seenfirst:
@@ -107,18 +106,21 @@ def reports(g, o):
             x.stats['times'] = times
             x.stats['maxTime'] = mx
 
-    # TODO write to file (json? pickle?)
+    out = {
+        'disc': disc,
+        'unc': unc,
+        'cons': cons,
+        'other': other,
+        'allTx': o.allTx
+    }
+    pickle.dump(out, open(o.outFile, 'w'))
 
 
 if __name__ == "__main__":
     fname = 'sim.json'
     if len(sys.argv) > 1:
         fname = sys.argv[1]
-    o = overseer.Overseer()
-    if os.path.isfile(fname):
-        o.load(fname)
-    else:
-        print "Settings file", fname, "does not exist; using defaults"
+    o = overseer.Overseer(fname)
     print o
     start = time.time()
     g = setupSim(o)

@@ -52,7 +52,7 @@ class Miner:
             self.sendMsg(i, Message(self.id, Type.BLOCK, t))
 
     def sendMsg(self, recipient, msg):
-        assert not (msg.type == Type.BLOCK and set(msg.content.pointers) - set(self.seen)) #shouldn't send a tx if I don't know tx for all of its pointers
+        assert not (msg.type == Type.BLOCK and set(msg.content.pointers) - set(self.seen))  # shouldn't send a tx if I don't know tx for all of its pointers
         self.g.nodes[recipient]['miner'].pushMsg(msg, self.o.getDelay())
 
     def sendRequest(self, recipient, targetHash):  # so subclasses don't have to know about Message/Type classes
@@ -78,7 +78,7 @@ class Miner:
                 self.handleTx(t, msg.sender, adj)
             elif msg.type == Type.REQUEST:  # requests are issued by other miners
                 targetHash = msg.content
-                assert targetHash in self.seen # I should never get a request for a tx I haven't seen
+                assert targetHash in self.seen  # I should never get a request for a tx I haven't seen
                 requestedTx = self.seen[targetHash]
                 self.sendMsg(msg.sender, Message(self.id, Type.BLOCK, requestedTx))
         if needToCheck or (self.hasSheep() and forceSheepCheck):  # have to check every time if has sheep...

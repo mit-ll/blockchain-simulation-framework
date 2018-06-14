@@ -1,8 +1,8 @@
 import random
+import networkx as nx
 import tx
 import miner
 import plot
-import networkx as nx
 
 
 class Node:
@@ -52,7 +52,7 @@ class Iota(miner.Miner):
             t = n.tx
             parents = [(self.findInChain(p), p) for p in t.pointers]
             if None not in [p[0] for p in parents]:
-                assert t.hash() not in self.chain #make sure I've never seen this tx before
+                assert t.hash() not in self.chain  # make sure I've never seen this tx before
                 if first:
                     broadcast.append(t)
                 t.addEvent(self.o.tick, self.id, tx.State.PRE)

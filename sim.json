@@ -1,7 +1,8 @@
 {    
-    "numMiners" : 300,
-    "txGenProb" : 0.0002,
-    "maxTx" : 40,
+    "numMiners" : 200,
+    "txGenProb" : 0.00019,
+    "maxTx" : 55,
     "bitcoinAcceptDepth" : 6,
-    "protocol" : "iota"
+    "protocol" : "bitcoin",
+    "outFile" : "out.p"
 }
