@@ -15,8 +15,7 @@ for n in g.nodes:
     allMinerIds.add(m.id)
     allMiners.append(m)
 
-d = plot.dagToDig(allMiners[0].root)
-d.render('test.gv',view=True)
+plot.plotDag(allMiners[0])
 
 
 

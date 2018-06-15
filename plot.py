@@ -6,25 +6,37 @@ import matplotlib.pyplot as plt
 from graphviz import Digraph
 
 
-def txName(x):
-    return str(x.id)+'; '+x.hash()[:4]
+def nodeLabel(node):
+    x = node.tx
+    return '<<B>'+str(x.id)+'</B><BR/>'+x.hash()[:4]+'>'
+
+
+visited = set()
 
 
 def dagToDig(miner, node, d=None):
-    i = txName(node.tx)
+    global visited
+    i = node.tx.hash()
+    if node in visited:
+        return d
     if d is None:
         d = Digraph()
         d.graph_attr['rankdir'] = 'RL'
     if node.tx in miner.accepted:
-        d.node(i, fillcolor='red', style='filled')
+        d.node(i, label=nodeLabel(node), fillcolor='#ffff66', style='filled')
+    else:
+        d.node(i, label=nodeLabel(node))
+    visited.add(node)
     for c in node.children:
-        ci = txName(c.tx)
+        ci = c.tx.hash()
         d.edge(ci, i)
         dagToDig(miner, c, d)
     return d
 
 
 def plotDag(miner, fname='test.gv'):
+    global visited
+    visited = set()
     d = dagToDig(miner, miner.root)
     d.render(fname, view=True)
 

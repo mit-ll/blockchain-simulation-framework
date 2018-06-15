@@ -39,12 +39,12 @@ class IdBag:
 class Overseer:
     """put all settings here; sim.py can initalize/change with .load"""
 
-    def __init__(self,fname=None):
+    def __init__(self, fname=None):
         self.tick = -1
         self.allTx = []
         self.idBag = IdBag()
 
-        #defaults
+        # defaults
         self.protocol = 'bitcoin'
         self.numMiners = 200
         self.txGenProb = .0001667  # once every 10 minutes, assuming 1 tick is 100ms

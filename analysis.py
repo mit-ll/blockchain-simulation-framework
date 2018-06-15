@@ -38,7 +38,7 @@ def analyze(fname):
         print "Some tx lost consensus after gaining it:", [t.id for t in disc]
     if unc:
         print "Consensus has still not been reached for some tx:", [t.id for t in unc]
-    return report#showMaxHist(allTx)
+    return report  # showMaxHist(allTx)
 
 
 if __name__ == "__main__":
