@@ -88,6 +88,7 @@ class Bitcoin(miner.Miner):
                 broadcast = not self.childOfOrphan(t)  # do not broadcast if oldest parent is orphan (includes orphan AND children of orphans!!)
                 t.addEvent(self.o.tick, self.id, tx.State.PRE)  # putting this here means that orphans are marked PRE before they join the genesis-rooted tree
             if parent is None:
+                self.orphans.append(n)
                 if first:  # only for new orphan
                     assert sender != self.id  # I'm processing a node I just created but I should never have created an orphan
                     self.sendRequest(sender, t.pointers[0])
