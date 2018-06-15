@@ -1,4 +1,4 @@
-import sim,overseer,plot,bitcoin,random,iota,analysis
+import sim,overseer,plot,bitcoin,random,iota,analysis,tx
 o = overseer.Overseer('sim.json')
 g = sim.setupSim(o)
 sim.runSim(g,o)
@@ -7,38 +7,52 @@ r = analysis.analyze('out.p')
 
 
 
+
+
 allMinerIds = set()
 allMiners=[]
 for n in g.nodes:
-	m = g.nodes[n]['miner']
-	allMinerIds.add(m.id)
-	allMiners.append(m)
+    m = g.nodes[n]['miner']
+    allMinerIds.add(m.id)
+    allMiners.append(m)
 
-plot.plotChain(allMiners[0])
+#plot.plotChain(allMiners[0])
+badMiners = set()
+for t in r['allTx']:
+    s = set([e.miner for e in t.history if e.state == tx.State.CONSENSUS])
+    if not s:
+        continue
+    diff = allMinerIds - s
+    if diff:
+        print t.id,diff
+        badMiners |= diff
 
+print badMiners
+for i in badMiners:
+    plot.plotChain(allMiners[i])
 
 
 
 
 def printSChain(node,me,t=0):
-	i = node.tx.id
-	s = '  '*t + str(i)
-	state = 0
-	for e in node.tx.history:
-		if e.miner == me:
-			state = e.state
-	if state == 2: #last state for this miner
-		s += "*"
-	print s
-	for c in node.children:
-		printSChain(c,me,t+1)
+    i = node.tx.id
+    s = '  '*t + str(i)
+    state = 0
+    for e in node.tx.history:
+        if e.miner == me:
+            state = e.state
+    if state == 2: #last state for this miner
+        s += "*"
+    print s
+    for c in node.children:
+        printSChain(c,me,t+1)
 
 def t(i=None):
-	if i is None:
-		i = random.randint(0,o.numMiners)
-	print 'MINER',i
-	m = g.nodes[i]['miner']
-	printSChain(m.root,m.id)
+    if i is None:
+        i = random.randint(0,o.numMiners)
+    print 'MINER',i
+    m = g.nodes[i]['miner']
+    printSChain(m.root,m.id)
 
 t(0)
 
@@ -54,36 +68,36 @@ sim.showHist(s[2])
 
 
 def checkHist(hist,miners):
-	s = set([e.miner for e in hist if e.state == 2])
-	return list(miners - s)
+    s = set([e.miner for e in hist if e.state == 2])
+    return list(miners - s)
 
 for t in o.allTx:
-	if t.reissued:
-		continue
-	check = checkHist(t.history,allMinerIds)
-	if check:
-		print t.id
+    if t.reissued:
+        continue
+    check = checkHist(t.history,allMinerIds)
+    if check:
+        print t.id
 
 
 
 
 def chIds(node):
-	return set([n.tx.id for n in node.children])
+    return set([n.tx.id for n in node.children])
 
 #try to compare all miners' views to one another...
 def allRec(nodes):
-	if not nodes:
-		return True
-	curr = nodes[0]
-	ch = chIds(curr)
-	for n in nodes:
-		if ch != chIds(n):
-			return False
-	print 'go deeper'
-	for d in curr.children:
-		if not allRec([c for n in nodes for c in n.children if c.tx.id == d.tx.id]):
-			return False
-	return True
+    if not nodes:
+        return True
+    curr = nodes[0]
+    ch = chIds(curr)
+    for n in nodes:
+        if ch != chIds(n):
+            return False
+    print 'go deeper'
+    for d in curr.children:
+        if not allRec([c for n in nodes for c in n.children if c.tx.id == d.tx.id]):
+            return False
+    return True
 
 allRec([m.root for m in allMiners])
 

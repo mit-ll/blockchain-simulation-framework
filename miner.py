@@ -6,7 +6,7 @@ class Message:
     def __init__(self, s, t, c):
         self.sender = s
         self.type = t
-        self.content = c
+        self.content = c  # tx for type BLOCK, hash string for type REQUEST
 
 
 class Type:
