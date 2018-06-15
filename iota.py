@@ -55,7 +55,7 @@ class Iota(miner.Miner):
                 assert t.hash() not in self.chain  # make sure I've never seen this tx before
                 if first:
                     broadcast.append(t)
-                t.addEvent(self.o.tick, self.id, tx.State.PRE)
+                t.addEvent(self.over.tick, self.id, tx.State.PRE)
                 self.chain[t.hash()] = n
                 for parent, pointer in parents:
                     assert n not in parent.children
@@ -114,9 +114,9 @@ class Iota(miner.Miner):
 
     def makeTx(self):
         """return tx
-        make sure to append to self.o.allTx
+        make sure to append to self.over.allTx
         """
-        newtx = tx.Tx(self.o.tick, self.id, self.o.idBag.getNextId())
+        newtx = tx.Tx(self.over.tick, self.id, self.over.idBag.getNextId())
         parents = self.getNewParents()
         assert parents  # should always have at least one (genesis tx)
         for parent in parents:
@@ -124,13 +124,13 @@ class Iota(miner.Miner):
             assert h in self.chain
             newtx.pointers.append(h)
         self.sheep.add(newtx)
-        self.o.allTx.append(newtx)
+        self.over.allTx.append(newtx)
         return newtx
 
     def checkReissues(self):
         """a chance for the miner to put its need-to-reissue tx in o.IdBag"""
         for i in self.reissue:
-            self.o.idBag.addId(i, self)
+            self.over.idBag.addId(i, self)
 
     def hasSheep(self):
         """returns whether miner has sheep"""
@@ -150,13 +150,13 @@ class Iota(miner.Miner):
         for node in self.chain.values():  # go through all nodes
             if self.reachableByAll(node):
                 if node.tx not in self.accepted:
-                    node.tx.addEvent(self.o.tick, self.id, tx.State.CONSENSUS)
+                    node.tx.addEvent(self.over.tick, self.id, tx.State.CONSENSUS)
                     self.accepted.add(node.tx)
                 if node.tx.id in self.reissue:
                     self.reissue.remove(node.tx.id)
             else:
                 if node.tx in self.accepted:
-                    node.tx.addEvent(self.o.tick, self.id, tx.State.DISCONSENSED)
+                    node.tx.addEvent(self.over.tick, self.id, tx.State.DISCONSENSED)
                     self.accepted.remove(node.tx)
                 if node.tx in self.sheep and self.needsReissue(node):
                     self.reissue.add(node.tx.id)

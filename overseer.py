@@ -17,9 +17,9 @@ class IdBag:
             miner.removeSheep(i)
             return i
         else:
-            ret = IdBag.nextId
+            nextId = IdBag.nextId
             IdBag.nextId += 1
-            return ret
+            return nextId
 
     def peekNextId(self):
         if self.bag:
@@ -84,10 +84,10 @@ class Overseer:
             self.outFile = data['outFile']
 
     def getMinerClass(self):
-        ret = bitcoin.Bitcoin
+        minerClass = bitcoin.Bitcoin
         if self.protocol == 'iota':
-            ret = iota.Iota
-        return ret
+            minerClass = iota.Iota
+        return minerClass
 
     def getDelay(self):
         return max(0, round(random.gauss(self.delayMu, self.delaySigma)))

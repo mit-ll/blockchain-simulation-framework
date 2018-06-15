@@ -19,8 +19,8 @@ class Miner:
 
     def __init__(self, i, gen, g, o):
         self.id = i
-        self.g = g
-        self.o = o
+        self.graph = g
+        self.over = o
         self.preq = []  # to prevent miners that execute later in a step from acting on msgs from miners that executed earlier that step
         self.queue = []
         self.seen = {}  # dictionary mapping hash to tx for seen tx
@@ -37,14 +37,14 @@ class Miner:
     def popMsg(self):
         qcopy = self.queue[:]
         self.queue = []
-        ret = []
+        msgs = []
         for msg, d in qcopy:
             d -= 1
             if d < 1:
-                ret.append(msg)
+                msgs.append(msg)
             else:
                 self.pushMsg(msg, d)
-        return ret  # should a miner only receive 1 message at a time, or can it do all at once like this?
+        return msgs  # should a miner only receive 1 message at a time, or can it do all at once like this?
 
     def broadcast(self, adj, t):
         """broadcast tx to all adjacent miners"""
@@ -53,7 +53,7 @@ class Miner:
 
     def sendMsg(self, recipient, msg):
         assert not (msg.type == Type.BLOCK and set(msg.content.pointers) - set(self.seen))  # shouldn't send a tx if I don't know tx for all of its pointers
-        self.g.nodes[recipient]['miner'].pushMsg(msg, self.o.getDelay())
+        self.graph.nodes[recipient]['miner'].pushMsg(msg, self.over.getDelay())
 
     def sendRequest(self, recipient, targetHash):  # so subclasses don't have to know about Message/Type classes
         self.sendMsg(recipient, Message(self.id, Type.REQUEST, targetHash))
@@ -85,7 +85,7 @@ class Miner:
             self.checkAll()
 
     def postStep(self, adj):
-        if random.random() < self.o.txGenProb:  # chance to gen tx (important that this happens AFTER processing messages)
+        if random.random() < self.over.txGenProb:  # chance to gen tx (important that this happens AFTER processing messages)
             newtx = self.makeTx()  # ABSTRACT - make a new tx
             self.hadChangeLastStep = True
             self.handleTx(newtx, self.id, adj)
@@ -96,10 +96,10 @@ class Miner:
 
     def makeTx(self):
         """return tx
-        make sure to append to self.o.allTx
+        make sure to append to self.over.allTx
         """
-        newtx = tx.Tx(self.o.tick, self.id, self.o.idBag.getNextId())
-        self.o.allTx.append(newtx)
+        newtx = tx.Tx(self.over.tick, self.id, self.over.idBag.getNextId())
+        self.over.allTx.append(newtx)
         return newtx
 
     def checkReissues(self):
@@ -114,7 +114,7 @@ class Miner:
         """update view
         return list of tx to broadcast
         """
-        t.addEvent(self.o.tick, self.id, tx.State.CONSENSUS)
+        t.addEvent(self.over.tick, self.id, tx.State.CONSENSUS)
         return [t]
 
     def checkAll(self):
