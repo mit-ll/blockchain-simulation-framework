@@ -8,7 +8,6 @@ r = analysis.analyze('out.p')
 
 
 
-
 allMinerIds = set()
 allMiners=[]
 for n in g.nodes:
@@ -16,7 +15,13 @@ for n in g.nodes:
     allMinerIds.add(m.id)
     allMiners.append(m)
 
-#plot.plotChain(allMiners[0])
+d = plot.dagToDig(allMiners[0].root)
+d.render('test.gv',view=True)
+
+
+
+
+
 badMiners = set()
 for t in r['allTx']:
     s = set([e.miner for e in t.history if e.state == tx.State.CONSENSUS])
