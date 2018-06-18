@@ -34,11 +34,13 @@ def analyze(fname):
     cons = report['cons']
     other = report['other']
     allTx = report['allTx']
+    print "Number of consensed tx:",len(cons)
     if disc:
         print "Some tx lost consensus after gaining it:", [t.id for t in disc]
     if unc:
         print "Consensus has still not been reached for some tx:", [t.id for t in unc]
-    return report  # showMaxHist(allTx)
+    # showMaxHist(allTx)
+    return report  
 
 
 if __name__ == "__main__":

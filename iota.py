@@ -11,6 +11,7 @@ class Node:
     def __init__(self, t):
         self.tx = t
         self.children = []
+        self.depth = 0 #only used by bitcoin
         self.reachable = set()  # set of nodes, populate when attaching a new node to its parent's children. Populate with parent and parent's reachable!
 
 
@@ -37,41 +38,41 @@ class Iota(miner.Miner):
         return None
 
     def addToChain(self, tAdd, sender):
-        """t is a tx (with pointer already set), and miner.py has already checked that we haven't seen it
-        returns list of tx to broadcast to neighbors
-        """
-        broadcast = []
         newn = Node(tAdd)
         temp = [newn] + self.orphans[:]
         self.orphans = []
-        first = True  # this matters for non-orphan-broadcast and for not requesting old orphans from current "sender" who has nothing to do with them
-        # if we don't know ALL of a tx's parents, it's an orphan
-        # we don't chain orphans; so during each addToChain we have to try to hookup/mark-as-PRE/add-to-self.chain/broadcast every orphan
-
-        for n in temp:  # for new node ("first" is True) and all orphans ("first" is False)
-            t = n.tx
-            parents = [(self.findInChain(p), p) for p in t.pointers]
-            if None not in [p[0] for p in parents]:
-                assert t.hash() not in self.chain  # make sure I've never seen this tx before
-                if first:
+        first = True
+        changed = True
+        broadcast = []
+        while changed and temp: # keep checking all nodes until nothing changed (or there are no orphans)
+            changed = False
+            for n in temp:
+                t = n.tx
+                parents = [(self.findInChain(p), p) for p in t.pointers] # works for both bitcoin and iota
+                if None not in [p[0] for p in parents]:
+                    assert t.hash() not in self.chain  # make sure I've never seen this tx before
+                    t.addEvent(self.over.tick, self.id, tx.State.PRE)
+                    self.chain[t.hash()] = n
                     broadcast.append(t)
-                t.addEvent(self.over.tick, self.id, tx.State.PRE)
-                self.chain[t.hash()] = n
-                for parent, pointer in parents:
-                    assert n not in parent.children
-                    parent.children.append(n)
-                    n.reachable |= set([parent]) | parent.reachable
-                    if parent in self.front:
-                        self.front.remove(parent)
-                self.front.add(n)
-            else:
-                self.orphans.append(n)
-                if first:  # only for new orphan
+                    for parent, pointer in parents:
+                        assert n not in parent.children
+                        parent.children.append(n)
+                        newDepth = parent.depth + 1
+                        if newDepth > n.depth:
+                            n.depth = newDepth
+                        n.reachable |= set([parent]) | parent.reachable # only needed in iota
+                        if parent in self.front:
+                            self.front.remove(parent)
+                    self.front.add(n)
+                    changed = True
+                    temp.remove(n)#remove from temp as we go, copy to self.orphans at the end
+                elif first:  # only for new orphan
                     assert sender != self.id  # I'm processing a node I just created but I should never have created an orphan
                     for parent, pointer in parents:
                         if parent is None:
                             self.sendRequest(sender, pointer)
             first = False
+        self.orphans = temp
         return broadcast
 
     def getNewParents(self):

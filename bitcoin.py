@@ -5,32 +5,14 @@ import tx
 import miner
 import plot
 
-
-def deepestChildren(node):
-    return deepRec(node)[0]
-
-
-def deepRec(node, d=0):
-    if not node.children:
-        return [node], d
-    l = []
-    mx = 0
-    for c in node.children:
-        subl, subd = deepRec(c, d+1)
-        if subd > mx:
-            l = []
-            mx = subd
-        if subd == mx:
-            l += subl
-    return l, mx
-
-
 class Node:
     """node in the bitcoin miner's personal view of the blockchain"""
 
     def __init__(self, t):
         self.tx = t
         self.children = []
+        self.depth = 0
+        self.reachable = set()  # used by Iota, not Bitcoin
 
 
 class Bitcoin(miner.Miner):
@@ -41,6 +23,7 @@ class Bitcoin(miner.Miner):
         self.root = Node(gen)
         self.chain = {}  # maps has to nodes whose tx has that hash
         self.chain[gen.hash()] = self.root
+        self.front = set([self.root])  # update this as nodes are added instead of recomputing!
         self.accepted = set()  # set of tx I've accepted (only used to avoid spamming tx.history events); don't count on this for reporting, use tx.history instead
         self.root.tx.addEvent(-1, self.id, tx.State.CONSENSUS)
         self.accepted.add(self.root.tx)
@@ -66,40 +49,43 @@ class Bitcoin(miner.Miner):
         else:
             return self.childOfOrphan(parent.tx)
 
-    #
     def addToChain(self, tAdd, sender):
-        """
-        t is a tx (with pointer already set), and miner.py has already checked that we haven't seen it
-        returns list of tx to broadcast to neighbors
-        from bitcoin wiki (https://en.bitcoin.it/wiki/Protocol_rules):
-                add this to orphan blocks, then query peer we got this from for 1st missing orphan block in prev chain; done with block
-                (also, when handling orphan blocks:) For each orphan block for which this block is its prev, run all these steps (including this one) recursively on that orphan
-        keep list of orphan nodes, still put them in self.chain so we have pointers to them, and whenever we get a new node, check orphans to see if it fits!
-        """
         newn = Node(tAdd)
-        self.chain[tAdd.hash()] = newn
         temp = [newn] + self.orphans[:]
         self.orphans = []
-        first = True  # this matters for non-orphan-broadcast and for not requesting old orphans from current "sender" who has nothing to do with them
-        for n in temp:  # for new node ("first" is True) and all orphans ("first" is False)
-            t = n.tx
-            parent = self.findInChain(t.pointers[0])  # only ever one pointer in Bitcoin
-            if first:
-                broadcast = not self.childOfOrphan(t)  # do not broadcast if oldest parent is orphan (includes orphan AND children of orphans!!)
-                t.addEvent(self.over.tick, self.id, tx.State.PRE)  # putting this here means that orphans are marked PRE before they join the genesis-rooted tree
-            if parent is None:
-                self.orphans.append(n)
-                if first:  # only for new orphan
+        first = True
+        changed = True
+        broadcast = []
+        while changed and temp: # keep checking all nodes until nothing changed (or there are no orphans)
+            changed = False
+            for n in temp:
+                t = n.tx
+                parents = [(self.findInChain(p), p) for p in t.pointers] # works for both bitcoin and iota
+                if None not in [p[0] for p in parents]:
+                    assert t.hash() not in self.chain  # make sure I've never seen this tx before
+                    t.addEvent(self.over.tick, self.id, tx.State.PRE)
+                    self.chain[t.hash()] = n
+                    broadcast.append(t)
+                    for parent, pointer in parents:
+                        assert n not in parent.children
+                        parent.children.append(n)
+                        newDepth = parent.depth + 1
+                        if newDepth > n.depth:
+                            n.depth = newDepth
+                        n.reachable |= set([parent]) | parent.reachable # only needed in iota
+                        if parent in self.front:
+                            self.front.remove(parent)
+                    self.front.add(n)
+                    changed = True
+                    temp.remove(n)#remove from temp as we go, copy to self.orphans at the end
+                elif first:  # only for new orphan
                     assert sender != self.id  # I'm processing a node I just created but I should never have created an orphan
-                    self.sendRequest(sender, t.pointers[0])
-            else:
-                parent.children.append(n)
-        # (Being a sheep and being an orphan are mutually exclusive; new nodes are added to originator's view, rooted at the genesis block)
+                    for parent, pointer in parents:
+                        if parent is None:
+                            self.sendRequest(sender, pointer)
             first = False
-        if broadcast:
-            return [tAdd]
-        else:
-            return []
+        self.orphans = temp
+        return broadcast
 
     def checkRec(self, node, maxDepth=-99, d=0):
         """returns maxDepth
@@ -140,8 +126,9 @@ class Bitcoin(miner.Miner):
         make sure to append to self.over.allTx
         """
         newtx = tx.Tx(self.over.tick, self.id, self.over.idBag.getNextId())
-        deepest = deepestChildren(self.root)
-        parent = random.choice(deepest)
+        sortedFronts = sorted(self.front, reverse=True,key=lambda n: n.depth)
+        choices = [n for n in sortedFronts if n.depth == sortedFronts[0].depth] # only consider the deepest front nodes
+        parent = random.choice(choices)
         newtx.pointers.append(parent.tx.hash())
         self.sheep.add(newtx)
         self.over.allTx.append(newtx)
