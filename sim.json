@@ -1,8 +1,22 @@
-{    
-    "numMiners" : 200,
-    "txGenProb" : 0.00019,
-    "maxTx" : 55,
-    "bitcoinAcceptDepth" : 6,
-    "protocol" : "iota",
-    "outFile" : "out.p"
+{
+    "numberOfExecutions": 20,
+    "topologySelection": "GENERATE_ONCE", 
+    "terminationCondition": "NUMBER_OF_GENERATED_TRANSACTIONS",
+    "terminationValue": 50,
+
+    "topology": {
+        "type": "GEOMETRIC_UNIFORM_DELAY",
+        "radius": 0.125,
+        "numberOfMiners": 200,
+        "networkDelay": {
+            "type": "GAUSSIAN",
+            "average": 5,
+            "standardDeviation": 1.3
+        }
+    },
+    "protocol": {
+        "type": "BITCOIN",
+        "acceptDepth": 6,
+        "transactionGenerationProbability": 0.0001667
+    }
 }

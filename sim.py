@@ -43,6 +43,7 @@ def runSim(g, o):
             o.txGenProb = -1
         anyHaveMsg = bool([True for i in g.nodes if g.nodes[i]['miner'].queue])
         if o.txGenProb <= 0 and not anyHaveMsg:  # run until no miners have messages
+
             break
         o.tick += 1
 
