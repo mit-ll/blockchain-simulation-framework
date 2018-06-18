@@ -3,7 +3,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import tx
 import miner
-import plot
+
 
 class Node:
     """node in the bitcoin miner's personal view of the blockchain"""
@@ -37,18 +37,6 @@ class Bitcoin(miner.Miner):
             return self.chain[target]
         return None
 
-    def childOfOrphan(self, t):
-        """returns False if earliest parent is genesis tx (t is "rooted in genesis tx")
-        returns True otherwise (t is an orphan or child of an orphan)
-        """
-        if not t.pointers:  # only genesis tx has not pointers
-            return False
-        parent = self.findInChain(t.pointers[0])
-        if parent is None:
-            return True
-        else:
-            return self.childOfOrphan(parent.tx)
-
     def addToChain(self, tAdd, sender):
         newn = Node(tAdd)
         temp = [newn] + self.orphans[:]
@@ -56,11 +44,11 @@ class Bitcoin(miner.Miner):
         first = True
         changed = True
         broadcast = []
-        while changed and temp: # keep checking all nodes until nothing changed (or there are no orphans)
+        while changed and temp:  # keep checking all nodes until nothing changed (or there are no orphans)
             changed = False
             for n in temp:
                 t = n.tx
-                parents = [(self.findInChain(p), p) for p in t.pointers] # works for both bitcoin and iota
+                parents = [(self.findInChain(p), p) for p in t.pointers]  # works for both bitcoin and iota
                 if None not in [p[0] for p in parents]:
                     assert t.hash() not in self.chain  # make sure I've never seen this tx before
                     t.addEvent(self.over.tick, self.id, tx.State.PRE)
@@ -72,12 +60,12 @@ class Bitcoin(miner.Miner):
                         newDepth = parent.depth + 1
                         if newDepth > n.depth:
                             n.depth = newDepth
-                        n.reachable |= set([parent]) | parent.reachable # only needed in iota
+                        n.reachable |= set([parent]) | parent.reachable  # only needed in iota
                         if parent in self.front:
                             self.front.remove(parent)
                     self.front.add(n)
                     changed = True
-                    temp.remove(n)#remove from temp as we go, copy to self.orphans at the end
+                    temp.remove(n)  # remove from temp as we go, copy to self.orphans at the end
                 elif first:  # only for new orphan
                     assert sender != self.id  # I'm processing a node I just created but I should never have created an orphan
                     for parent, pointer in parents:
@@ -126,8 +114,8 @@ class Bitcoin(miner.Miner):
         make sure to append to self.over.allTx
         """
         newtx = tx.Tx(self.over.tick, self.id, self.over.idBag.getNextId())
-        sortedFronts = sorted(self.front, reverse=True,key=lambda n: n.depth)
-        choices = [n for n in sortedFronts if n.depth == sortedFronts[0].depth] # only consider the deepest front nodes
+        sortedFronts = sorted(self.front, reverse=True, key=lambda n: n.depth)
+        choices = [n for n in sortedFronts if n.depth == sortedFronts[0].depth]  # only consider the deepest front nodes
         parent = random.choice(choices)
         newtx.pointers.append(parent.tx.hash())
         self.sheep.add(newtx)
