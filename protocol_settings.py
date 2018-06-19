@@ -9,17 +9,22 @@ import protocols
 class ProtocolType(Enum):
     """The various protocol types supported by this framework.
     """
+
     BITCOIN = 1
     IOTA = 2
 
 
 class ProtocolSettings:
+    """Stores settings related to blockchain protocols.
+    """
+
     def __init__(self, value):
         """Parses the settings in the value parameter.
 
         Arguments:
             value {str|dict} -- If a string, it is a pointer to a JSON-encoded file containing the settings. If a dict, then it is the settings.
         """
+
         if type(value) is str:
             # Treat the value as a file locator.
             with open(value, 'r') as settingsFile:
@@ -37,8 +42,11 @@ class ProtocolSettings:
             raise NotImplementedError("Selected protocol type is not implemented")
 
     def getMinerClass(self):
-        """Gets the appropriate class for creating miners based on the protocol type.
         """
+        Returns:
+            classobj -- The appropriate class for creating miners based on the protocol type.
+        """
+
         if self.protocol_type == ProtocolType.BITCOIN:
             return protocols.bitcoin.Bitcoin
         elif self.protocol_type == ProtocolType.IOTA:
@@ -55,6 +63,7 @@ class ProtocolSettings:
         Returns:
             IdBag -- The IdBag object the miner should use during the simulation.
         """
+
         if self.protocol_type == ProtocolType.BITCOIN:
             return id_bag.getSingleBag(simulation)  # All bitcoin miners share one "pool" of tx.
         elif self.protocol_type == ProtocolType.IOTA:
@@ -63,7 +72,17 @@ class ProtocolSettings:
             raise NotImplementedError("Selected protocol type is not implemented")
 
     def __str__(self):
+        """        
+        Returns:
+            str -- String representation of object.
+        """
+
         return pformat(self.__dict__, indent=8)
 
     def __repr__(self):
+        """        
+        Returns:
+            str -- String representation of object.
+        """
+
         return pformat(self.__dict__, indent=8)

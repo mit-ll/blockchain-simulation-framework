@@ -1,82 +1,112 @@
 import random
 import networkx as nx
-import tx
+import transaction
 import miner
 import bitcoin
 
 
 class Iota(bitcoin.Bitcoin):
+    """Iota protocol miner.
+    """
+
     name = "Iota"
 
-    def __init__(self, id, genesis_tx, graph, simulation):
-        bitcoin.Bitcoin.__init__(self, id, genesis_tx, graph, simulation)
+    def __init__(self, miner_id, genesis_tx, graph, simulation):
+        """        
+        Arguments:
+            miner_id {int} -- Miner's id.
+            genesis_tx {Tx} -- Blockchain protocol's genesis transaction.
+            graph {networkx.Graph} -- Graph of network being simulated.
+            simulation {Simulation} -- Simulation object that stores settings and simulation variables.
+        """
+
+        bitcoin.Bitcoin.__init__(self, miner_id, genesis_tx, graph, simulation)
 
     def getNewParents(self):
-        """returns list of 1 or 2 parent tx for new tx"""
-        choices = list(self.front)
-        if self.root in choices and len(choices) >= 3:
-            choices.remove(self.root)
-        choices = [c.tx for c in choices]
-        l = len(choices)
-        assert l > 0
-        if l == 2 or choices == [self.root.tx]:
-            return choices
-        elif l == 1:
-            return [choices[0], random.choice([n.tx for n in self.chain.values() if n.tx not in choices])]  # if there's only one frontier node, we select another node at random
-        i = j = 0
-        while i == j:
-            i = random.randint(0, l-1)
-            j = random.randint(0, l-1)
-        return [choices[i], choices[j]]
-
-    def reachableByAll(self, node):
-        """returns whether node is reachable by all frontier nodes that are keys in reachable
-        fronts is set of frontier nodes (with front.reachable)
         """
-        for front in list(self.front):
+        Returns:
+            list(Tx) -- List of 1 or 2 parent tx for new tx.
+        """
+
+        node_choices = list(self.frontier_nodes)
+        if self.root in node_choices and len(node_choices) >= 3:
+            node_choices.remove(self.root)
+        choices = [choice.tx for choice in node_choices]
+        num_choices = len(choices)
+        assert num_choices > 0
+        if num_choices == 2 or choices == [self.root.tx]:
+            return choices
+        elif num_choices == 1:
+            return [choices[0], random.choice([n.tx for n in self.chain_pointers.values() if n.tx not in choices])]  # If there's only one frontier node, we select another node at random.
+        first_parent_index = second_parent_index = 0
+        while first_parent_index == second_parent_index:
+            first_parent_index = random.randint(0, num_choices-1)
+            second_parent_index = random.randint(0, num_choices-1)
+        return [choices[first_parent_index], choices[second_parent_index]]
+
+    def reachableByAllFrontiers(self, node):
+        """        
+        Arguments:
+            node {Node} -- Node in question.
+
+        Returns:
+            bool -- True if node is reachable by all frontier nodes
+        """
+
+        for front in list(self.frontier_nodes):
             if node not in front.reachable:
                 return False
         return True
 
     def needsReissue(self, node):
-        """returns True if both of node's parents are reachableByAll (means node is too deep to be not accepted/reachableByAll itself and needs reissue)
-        fronts is list of frontier nodes (with front.reachable)
         """
-        for p in node.tx.pointers:
-            if not self.reachableByAll(self.chain[p]):  # don't need to worry about excluding node itself
+        Arguments:
+            node {Node} -- Node in question.
+
+        Returns:
+            bool -- True if both of node's parents are reachableByAll (means node is too deep to be not accepted/reachableByAll itself and needs reissue), False otherwise.
+        """
+
+        for pointer in node.tx.pointers:
+            if not self.reachableByAllFrontiers(self.chain_pointers[pointer]):
                 return False
         return True
 
-    # ==overwritten methods============
+    # ==Overwritten methods============
 
     def makeTx(self):
-        """return tx
-        make sure to append to self.over.allTx
-        """
-        newtx = tx.Tx(self.simulation.tick, self.id, self.id_bag.getNextId())
-        parents = self.getNewParents()
-        assert parents  # should always have at least one (genesis tx)
-        for parent in parents:
-            h = parent.hash()
-            assert h in self.chain
-            newtx.pointers.append(h)
-        self.sheep.add(newtx)
-        self.simulation.all_tx.append(newtx)
-        return newtx
+        """Makes a new transaction, connects it to the chain, and returns it.
 
-    def checkAll(self):
-        """check all nodes for consensus (runs an implicit "tau" on each node, but all at once because it's faster)"""
-        self.reissue = set()  # only reset when you checkAll so that it stays full!
-        for node in self.chain.values():  # go through all nodes
-            if self.reachableByAll(node):
-                if node.tx not in self.accepted:
-                    node.tx.addEvent(self.simulation.tick, self.id, tx.State.CONSENSUS)
-                    self.accepted.add(node.tx)
-                if node.tx.id in self.reissue:
-                    self.reissue.remove(node.tx.id)
+        Returns:
+            Tx -- Newly created transaction.
+        """
+
+        new_tx = transaction.Tx(self.simulation.tick, self.id, self.id_bag.getNextId())
+        parents = self.getNewParents()
+        assert parents  # Should always have at least one (genesis tx).
+        for parent in parents:
+            parent_hash = parent.hash()
+            assert parent_hash in self.chain_pointers
+            new_tx.pointers.append(parent_hash)
+        self.sheep_tx.add(new_tx)
+        self.simulation.all_tx.append(new_tx)
+        return new_tx
+
+    def checkAllTx(self):
+        """Check all nodes for consensus (runs an implicit "tau function" on each node, but all at once because it's faster), and whether sheep need to be reissued.
+        """
+
+        self.reissue_ids = set()  # Only reset when you checkAll so that it stays full!
+        for node in self.chain_pointers.values():
+            if self.reachableByAllFrontiers(node):
+                if node.tx not in self.accepted_tx:
+                    node.tx.addEvent(self.simulation.tick, self.id, transaction.State.CONSENSUS)
+                    self.accepted_tx.add(node.tx)
+                if node.tx.id in self.reissue_ids:
+                    self.reissue_ids.remove(node.tx.id)
             else:
-                if node.tx in self.accepted:
-                    node.tx.addEvent(self.simulation.tick, self.id, tx.State.DISCONSENSED)
-                    self.accepted.remove(node.tx)
-                if node.tx in self.sheep and self.needsReissue(node):
-                    self.reissue.add(node.tx.id)
+                if node.tx in self.accepted_tx:
+                    node.tx.addEvent(self.simulation.tick, self.id, transaction.State.DISCONSENSED)
+                    self.accepted_tx.remove(node.tx)
+                if node.tx in self.sheep_tx and self.needsReissue(node):
+                    self.reissue_ids.add(node.tx.id)

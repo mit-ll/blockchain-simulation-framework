@@ -1,164 +1,230 @@
 import random
 import networkx as nx
 import matplotlib.pyplot as plt
-import tx
+import transaction
 import miner
 
 
 class Node:
-    """node in the bitcoin miner's personal view of the blockchain"""
+    """Node in the Bitcoin miner's personal view of the blockchain. Provides forward pointers through blockchain for convenience.
+    """
 
-    def __init__(self, t):
-        self.tx = t
+    def __init__(self, tx):
+        """
+        Arguments:
+            t {Tx} -- The transaction that the node represents.
+        """
+
+        self.tx = tx
         self.children = []
-        self.depth = 0
-        self.reachable = set()  # used by Iota, not Bitcoin
+        self.depth = 0  # Used by Bitcoin, not Iota.
+        self.reachable = set()  # Used by Iota, not Bitcoin.
 
 
 class Bitcoin(miner.Miner):
+    """Bitcoin protocol miner.
+    """
+
     name = "Bitcoin"
 
-    def __init__(self, id, genesis_tx, graph, simulation):
-        miner.Miner.__init__(self, id, genesis_tx, graph, simulation)  # calls self.start()
-        self.root = Node(genesis_tx)
-        self.chain = {}  # maps has to nodes whose tx has that hash
-        self.chain[genesis_tx.hash()] = self.root
-        self.front = set([self.root])  # update this as nodes are added instead of recomputing!
-        self.accepted = set()  # set of tx I've accepted (only used to avoid spamming tx.history events); don't count on this for reporting, use tx.history instead
-        self.root.tx.addEvent(-1, self.id, tx.State.CONSENSUS)
-        self.accepted.add(self.root.tx)
-        self.sheep = set()  # queue of tx to shepherd
-        self.reissue = set()  # temporary set of ids that need to be reissued (populated anew each time checkAll is called)
-        self.orphans = []
+    def __init__(self, miner_id, genesis_tx, graph, simulation):
+        """        
+        Arguments:
+            miner_id {int} -- Miner's id.
+            genesis_tx {Tx} -- Blockchain protocol's genesis transaction.
+            graph {networkx.Graph} -- Graph of network being simulated.
+            simulation {Simulation} -- Simulation object that stores settings and simulation variables.
+        """
 
-    def findInChain(self, target):
-        """returns the tx from self.chain with the target hash"""
-        if target in self.chain:
-            return self.chain[target]
+        miner.Miner.__init__(self, miner_id, genesis_tx, graph, simulation)
+        self.root = Node(genesis_tx)
+        self.chain_pointers = {}  # Maps hash to node whose tx has that hash.
+        self.chain_pointers[genesis_tx.hash()] = self.root
+        self.frontier_nodes = set([self.root])  # Update this as nodes are added instead of recomputing deepest nodes.
+        self.accepted_tx = set()  # Set of tx I've accepted (only used to avoid spamming tx.history events); don't count on this for reporting, use tx.history instead.
+        self.root.tx.addEvent(-1, self.id, transaction.State.CONSENSUS)
+        self.accepted_tx.add(self.root.tx)
+        self.sheep_tx = set()  # Queue of tx to shepherd.
+        self.reissue_ids = set()  # Temporary set of ids that need to be reissued (populated anew each time checkAll is called).
+        self.orphan_nodes = []
+
+    def findInChain(self, target_hash):
+        """
+        Arguments:
+            target_hash {str} -- Hash of the tx we're looking for.
+
+        Returns:
+            {Node|None} -- Returns the node from chain whose tx has the target hash, or None if no such tx is in chain.
+        """
+
+        if target_hash in self.chain_pointers:
+            return self.chain_pointers[target_hash]
         return None
 
-    def addToChain(self, tAdd, sender):
-        newn = Node(tAdd)
-        temp = [newn] + self.orphans[:]
-        self.orphans = []
+    def addToChain(self, tx_to_add, sender_id):
+        """Adds tx_to_add to the chain if all of its parents are in the chain, otherwise it becomes an orphan.
+        Loops through all orphans and tries to connect them, leaving unconnectable nodes as orphans.
+
+        Arguments:
+            tx_to_add {Tx} -- Tx to be added to the chain.
+            sender_id {int} -- Id of the node that sent tx_to_add; used to send a request if we haven't seen any/all of its parents.
+
+        Returns:
+            list(Tx) -- List of tx that were just added to the chain to broadcast to neighbors.
+        """
+
+        new_node = Node(tx_to_add)
+        nodes_to_add = [new_node] + self.orphan_nodes[:]
+        self.orphan_nodes = []
         first = True
-        changed = True
-        broadcast = []
-        while changed and temp:  # keep checking all nodes until nothing changed (or there are no orphans)
-            changed = False
-            for n in temp:
-                t = n.tx
-                parents = [(self.findInChain(p), p) for p in t.pointers]  # works for both bitcoin and iota
+        chain_changed = True
+        to_broadcast = []
+        while chain_changed and nodes_to_add:  # Keep checking all nodes until nothing changed (or there are no orphans).
+            chain_changed = False
+            for node_to_add in nodes_to_add:
+                tx_to_add = node_to_add.tx
+                parents = [(self.findInChain(parent), parent) for parent in tx_to_add.pointers]  # Find node associated with each parent (works for both bitcoin and iota).
                 if None not in [p[0] for p in parents]:
-                    assert t.hash() not in self.chain  # make sure I've never seen this tx before
-                    t.addEvent(self.simulation.tick, self.id, tx.State.PRE)
-                    self.chain[t.hash()] = n
-                    broadcast.append(t)
+                    assert tx_to_add.hash() not in self.chain_pointers  # Make sure I've never seen this tx before.
+                    tx_to_add.addEvent(self.simulation.tick, self.id, transaction.State.PRE)
+                    self.chain_pointers[tx_to_add.hash()] = node_to_add
+                    to_broadcast.append(tx_to_add)
                     for parent, pointer in parents:
-                        assert n not in parent.children
-                        parent.children.append(n)
-                        newDepth = parent.depth + 1
-                        if newDepth > n.depth:
-                            n.depth = newDepth
-                        n.reachable |= set([parent]) | parent.reachable  # only needed in iota
-                        if parent in self.front:
-                            self.front.remove(parent)
-                    self.front.add(n)
-                    changed = True
-                    temp.remove(n)  # remove from temp as we go, copy to self.orphans at the end
-                elif first:  # only for new orphan
-                    assert sender != self.id  # I'm processing a node I just created but I should never have created an orphan
+                        assert node_to_add not in parent.children
+                        parent.children.append(node_to_add)
+                        new_depth = parent.depth + 1
+                        if new_depth > node_to_add.depth:
+                            node_to_add.depth = new_depth
+                        node_to_add.reachable |= set([parent]) | parent.reachable  # Only needed in Iota.
+                        if parent in self.frontier_nodes:
+                            self.frontier_nodes.remove(parent)
+                    self.frontier_nodes.add(node_to_add)
+                    chain_changed = True
+                    nodes_to_add.remove(node_to_add)  # Remove from nodes_to_add as we go, copy to self.orphan_nodes at the end.
+                elif first:  # Only for new orphan.
+                    assert sender_id != self.id  # I'm processing a node I just created but I should never have created an orphan.
                     for parent, pointer in parents:
                         if parent is None:
-                            self.sendRequest(sender, pointer)
+                            self.sendRequest(sender_id, pointer)
             first = False
-        self.orphans = temp
-        return broadcast
+        self.orphan_nodes = nodes_to_add  # Leftover nodes are orphans.
+        return to_broadcast
 
-    def checkRec(self, node, maxDepth=-99, d=0):
-        """returns maxDepth
-        if maxDepth is > 0, will mark tx as accepted if they are in the deepest chain and at least 6 deep (will also add sheep to self.reissue if appropriate)
+    def checkTxRecursion(self, node, max_depth=-99, curr_depth=0):
+        """Recursive function with dual functionality:
+        Always returns maximum depth of the chain.
+        If maxDepth is > 0, will also mark tx as accepted if they are in the deepest chain and at least as deep as the accept depth (will also add sheep to self.reissue_ids if appropriate).
+
+        Arguments:
+            node {Node} -- The current node being examined by the recursive function.
+
+        Keyword Arguments:
+            max_depth {int} -- The maximum depth of the chain. (default: {-99})
+            curr_depth {int} -- The current node's depth (post-recursive-call). (default: {0})
+
+        Returns:
+            int -- Maximum depth of the chain.
         """
+
         if not node.children:
-            # the only portion of the the checks at the end of this function that need to be run on leaf nodes
-            if maxDepth > 0 and node.tx in self.sheep and d < maxDepth - self.simulation.protocol.accept_depth:
-                self.reissue.add(node.tx.id)
-            return d
+            # The only portion of the the checks at the end of this function that need to be run on leaf nodes.
+            if max_depth > 0 and node.tx in self.sheep_tx and curr_depth < max_depth - self.simulation.protocol.accept_depth:
+                self.reissue_ids.add(node.tx.id)
+            return curr_depth
 
-        mx = 0
-        for c in node.children:
-            i = self.checkRec(c, maxDepth, d+1)
-            if i > mx:
-                mx = i
+        local_max = 0
+        for child in node.children:
+            child_max = self.checkTxRecursion(child, max_depth, curr_depth+1)
+            if child_max > local_max:
+                local_max = child_max
 
-        if maxDepth > 0:
-            if mx == maxDepth and mx - d >= self.simulation.protocol.accept_depth:
-                if node.tx not in self.accepted:
-                    node.tx.addEvent(self.simulation.tick, self.id, tx.State.CONSENSUS)
-                    self.accepted.add(node.tx)
-                if node.tx.id in self.reissue:
-                    self.reissue.remove(node.tx.id)  # accepted, so it doesn't need to be reiussed (this will happen because reissued tx are still saved in old forks)
-            elif mx != maxDepth:
-                if node.tx in self.accepted:
-                    node.tx.addEvent(self.simulation.tick, self.id, tx.State.DISCONSENSED)
-                    self.accepted.remove(node.tx)
-                # below:first condition says that it's a sheep on an unaccepted fork, second condition says whether it's time to rebroadcast (max depth of fork is 6+ deep)
-                if node.tx in self.sheep and mx < maxDepth - self.simulation.protocol.accept_depth:
-                    self.reissue.add(node.tx.id)  # the order these will be added to reissue is leaf-up
-        return mx
+        if max_depth > 0:
+            if local_max == max_depth and local_max - curr_depth >= self.simulation.protocol.accept_depth:
+                if node.tx not in self.accepted_tx:
+                    node.tx.addEvent(self.simulation.tick, self.id, transaction.State.CONSENSUS)
+                    self.accepted_tx.add(node.tx)
+                if node.tx.id in self.reissue_ids:
+                    self.reissue_ids.remove(node.tx.id)  # Accepted, so it doesn't need to be reiussed (this will happen because reissued tx are still saved in old forks).
+            elif local_max != max_depth:
+                if node.tx in self.accepted_tx:
+                    node.tx.addEvent(self.simulation.tick, self.id, transaction.State.DISCONSENSED)
+                    self.accepted_tx.remove(node.tx)
+                # Below: first condition says that it's a sheep on an unaccepted fork, second condition says whether it's time to rebroadcast (max depth of fork is 6+ deep).
+                if node.tx in self.sheep_tx and local_max < max_depth - self.simulation.protocol.accept_depth:
+                    self.reissue_ids.add(node.tx.id)  # The order these will be added to reissue is leaf-up.
+        return local_max
 
-    # ==overwritten methods============
+    # ==Overwritten methods============
 
     def makeTx(self):
-        """return tx
-        make sure to append to self.over.allTx
-        """
-        newtx = tx.Tx(self.simulation.tick, self.id, self.id_bag.getNextId())
-        sortedFronts = sorted(self.front, reverse=True, key=lambda n: n.depth)
-        choices = [n for n in sortedFronts if n.depth == sortedFronts[0].depth]  # only consider the deepest front nodes
-        parent = random.choice(choices)
-        newtx.pointers.append(parent.tx.hash())
-        self.sheep.add(newtx)
-        self.simulation.all_tx.append(newtx)
-        return newtx
+        """Makes a new transaction, connects it to the chain, and returns it.
 
-    # How BITCOIN miners handle shepherding
-    # checkall, which should also mark nodes as need-to-reissue
-    # give "need-to-reissue" to sim.py to setup IdBag
+        Returns:
+            Tx -- Newly created transaction.
+        """
+
+        new_tx = transaction.Tx(self.simulation.tick, self.id, self.id_bag.getNextId())
+        sorted_fronts = sorted(self.frontier_nodes, reverse=True, key=lambda n: n.depth)
+        parent_choices = [n for n in sorted_fronts if n.depth == sorted_fronts[0].depth]  # Only consider the deepest frontier nodes.
+        parent = random.choice(parent_choices)
+        new_tx.pointers.append(parent.tx.hash())
+        self.sheep_tx.add(new_tx)
+        self.simulation.all_tx.append(new_tx)
+        return new_tx
 
     def checkReissues(self):
-        """a chance for the miner to put its need-to-reissue tx in o.IdBag"""
-        for i in self.reissue:
+        """Miner adds any ids that need to be reiussed to its idBag.
+        """
+
+        for i in self.reissue_ids:
             self.id_bag.addId(i, self)
 
     def hasSheep(self):
-        """returns whether miner has sheep"""
-        if self.sheep:
+        """        
+        Returns:
+            bool -- True if the miner has sheep, False otherwise.
+        """
+
+        if self.sheep_tx:
             return True
         return False
 
-    def process(self, t, sender):
-        """update view
-        return list of tx to broadcast
+    def processNewTx(self, new_tx, sender_id):
+        """Add new_tx to the miner's view of the blockchain.
+
+        Arguments:
+            new_tx {Tx} -- New transaction to add.
+            sender_id {int} -- Id of the node that sent us new_tx.
+
+        Returns:
+            list(Tx) -- List of transactions to broadcast to neighbors.
         """
-        return self.addToChain(t, sender)
 
-    def checkAll(self):
-        """check all nodes for consensus (runs an implicit "tau" on each node, but all at once because it's faster)"""
-        self.reissue = set()  # only reset when you checkAll so that it stays full
-        maxDepth = self.checkRec(self.root)
-        if maxDepth < self.simulation.protocol.accept_depth:
+        return self.addToChain(new_tx, sender_id)
+
+    def checkAllTx(self):
+        """Check all nodes for consensus (runs an implicit "tau function" on each node, but all at once because it's faster), and whether sheep need to be reissued.
+        """
+
+        self.reissue_ids = set()  # Only reset when you checkAll so that it stays full.
+        max_depth = self.checkTxRecursion(self.root)
+        if max_depth < self.simulation.protocol.accept_depth:
             return
-        self.checkRec(self.root, maxDepth)
+        self.checkTxRecursion(self.root, max_depth)
 
-    def removeSheep(self, i):
-        """overseer will call this to tell the miner that it doesn't have to shepherd an id anymore"""
-        x = None
-        for s in self.sheep:
-            if s.id == i:
-                x = s
+    def removeSheep(self, sheep_id):
+        """Overseer will call this to tell the miner that it doesn't have to shepherd an id anymore.
+
+        Arguments:
+            sheep_id {int} -- Id of tx to remove from sheep_tx.
+        """
+
+        target_sheep = None
+        for sheep in self.sheep_tx:
+            if sheep.id == sheep_id:
+                target_sheep = sheep
                 break
-        if x:
-            self.sheep.remove(x)
-        if i in self.reissue:
-            self.reissue.remove(i)
+        if target_sheep:
+            self.sheep_tx.remove(target_sheep)
+        if sheep_id in self.reissue_ids:
+            self.reissue_ids.remove(sheep_id)

@@ -1,128 +1,218 @@
 import random
-import tx
+import transaction
 
 
 class Message:
-    def __init__(self, s, t, c):
-        self.sender = s
-        self.type = t
-        self.content = c  # tx if type is BLOCK, hash string if type is REQUEST.
+    """Message from one miner to another.
+    """
+
+    def __init__(self, sender_id, msg_type, content):
+        """[summary]
+
+        Arguments:
+            sender_id {int} -- Id of sending miner.
+            msg_type {Type} -- Type of message.
+            content {Tx|str} -- Tx if type is BLOCK, hash string if type is REQUEST.
+        """
+
+        self.sender = sender_id
+        self.type = msg_type
+        self.content = content
 
 
 class Type:
+    """Enumeration of message types.
+    """
+
     BLOCK = 0
     REQUEST = 1
 
 
 class Miner:
+    """Miner superclass (also implements naive miner).
+    """
+
     name = "Naive"
 
-    def __init__(self, id, genesis_tx, graph, simulation):
-        self.id = id
+    def __init__(self, miner_id, genesis_tx, graph, simulation):
+        """        
+        Arguments:
+            miner_id {int} -- Miner's id.
+            genesis_tx {Tx} -- Blockchain protocol's genesis transaction.
+            graph {networkx.Graph} -- Graph of network being simulated.
+            simulation {Simulation} -- Simulation object that stores settings and simulation variables.
+        """
+        self.id = miner_id
         self.graph = graph
         self.simulation = simulation
-        self.preq = []  # To prevent miners that execute later in a step from acting on msgs from miners that executed earlier that step.
+        self.pre_queue = []
         self.queue = []
-        self.seen = {}  # Dictionary mapping hash to tx for seen tx.
-        self.seen[genesis_tx.hash()] = genesis_tx
-        self.hadChangeLastStep = False
+        self.seen_tx = {}  # Dictionary mapping hash to tx for seen tx.
+        self.seen_tx[genesis_tx.hash()] = genesis_tx
+        self.changed_last_step = False
         self.id_bag = simulation.protocol.getIdBag(simulation)
-        self.adjacencies = None  # Will be filled in by simulation.updateMinerAdjacencies().
+        self.adjacencies = {}  # Will be filled in by simulation.updateMinerAdjacencies().
 
     def pushMsg(self, msg, delay=0):
-        self.preq.append([msg, delay])
+        """Push message into prequeue. Will be added to queue when flushMsgs() is called.
+        This is done to prevent miners that execute later in a step from acting on msgs from miners that executed earlier that step.
+
+        Arguments:
+            msg {Message} -- Message to push onto queue.
+
+        Keyword Arguments:
+            delay {int} -- Delay in ticks until message arrives. (default: {0})
+        """
+
+        self.pre_queue.append([msg, delay])
 
     def flushMsgs(self):
-        self.queue = self.preq[:]
-        self.preq = []
+        """Adds all messages from prequeue to queue.
+        """
+
+        self.queue = self.pre_queue[:]
+        self.pre_queue = []
 
     def popMsg(self):
-        qcopy = self.queue[:]
+        """Pops all messages with delay 0 from queue, decrements delay of all other messages in queue.
+
+        Returns:
+            list(Message) -- List of all messages recieved this tick.
+        """
+
+        queue_copy = self.queue[:]
         self.queue = []
-        msgs = []
-        for msg, d in qcopy:
-            d -= 1
-            if d < 1:
-                msgs.append(msg)
+        returned_msgs = []
+        for msg, delay in queue_copy:
+            delay -= 1
+            if delay < 1:
+                returned_msgs.append(msg)
             else:
-                self.pushMsg(msg, d)
-        return msgs  # should a miner only receive 1 message at a time, or can it do all at once like this?
+                self.pushMsg(msg, delay)
+        return returned_msgs
 
-    def broadcast(self, t):
-        """broadcast tx to all adjacent miners"""
-        for i in self.adjacencies:
-            self.sendMsg(i, Message(self.id, Type.BLOCK, t))
+    def broadcast(self, tx):
+        """Broadcast tx to all adjacent miners.
+        """
 
-    def sendMsg(self, recipient, msg):
-        assert not (msg.type == Type.BLOCK and set(msg.content.pointers) - set(self.seen))  # Shouldn't send a tx if I don't know tx for all of its pointers.
-        edge = self.adjacencies[recipient]
-        self.graph.nodes[recipient]['miner'].pushMsg(msg, edge['network_delay'].sample())
+        for neighbor_id in self.adjacencies:
+            self.sendMsg(neighbor_id, Message(self.id, Type.BLOCK, tx))
 
-    def sendRequest(self, recipient, targetHash):  # So subclasses don't have to know about Message/Type classes.
-        self.sendMsg(recipient, Message(self.id, Type.REQUEST, targetHash))
+    def sendMsg(self, recipient_id, msg):
+        """Send message to a recipient miner.
 
-    def handleTx(self, t, sender):
-        self.seen[t.hash()] = t
-        for x in self.process(t, sender):  # ABSTRACT - Process tx.
-            self.broadcast(x)  # broadcast new/first-time-seen-NOT-ORPHAN tx only
+        Arguments:
+            recipient_id {int} -- Recipient miner's id.
+            msg {Message} -- Message to send.
+        """
 
-    def step(self):
-        forceSheepCheck = self.hadChangeLastStep
-        self.hadChangeLastStep = False
-        needToCheck = False
+        assert not (msg.type == Type.BLOCK and set(msg.content.pointers) - set(self.seen_tx))  # Shouldn't send a tx if I don't know tx for all of its pointers.
+        edge = self.adjacencies[recipient_id]
+        self.graph.nodes[recipient_id]['miner'].pushMsg(msg, edge['network_delay'].sample())
+
+    def sendRequest(self, recipient_id, target_hash):
+        """Send request for a tx with target_hash.
+        Provided so subclasses don't have to know about Message/Type classes.
+
+        Arguments:
+            recipient_id {int} -- Recipient miner's id.
+            target_hash {str} -- Hash of transaction being requested.
+        """
+
+        self.sendMsg(recipient_id, Message(self.id, Type.REQUEST, target_hash))
+
+    def handleNewTx(self, tx, sender_id):
+        """Process new tx by adding it to miner's view of blockain and broadcasting tx if appropriate.
+
+        Arguments:
+            tx {Tx} -- Transaction to handle.
+            sender_id {int} -- Id of miner who we received this tx from.
+        """
+
+        self.seen_tx[tx.hash()] = tx
+        for x in self.processNewTx(tx, sender_id):  # ABSTRACT - Process tx.
+            self.broadcast(x)  # Broadcast new or first-time-seen-NON-ORPHAN tx only.
+
+    def handleMsgs(self):
+        """Receive all messages and handle by adding new tx to chain and sending requested tx.
+        """
+
+        force_sheep_check = self.changed_last_step
+        self.changed_last_step = False
+        need_to_check = False
         for msg in self.popMsg():  # Receive message(s) from queue.
             if msg.type == Type.BLOCK:
-                t = msg.content
-                if t.hash() in self.seen:
+                new_tx = msg.content
+                if new_tx.hash() in self.seen_tx:
                     continue
-                needToCheck = True
-                self.hadChangeLastStep = True
-                self.handleTx(t, msg.sender)
+                need_to_check = True
+                self.changed_last_step = True
+                self.handleNewTx(new_tx, msg.sender)
             elif msg.type == Type.REQUEST:  # Requests are issued by other miners.
-                targetHash = msg.content
-                assert targetHash in self.seen  # I should never get a request for a tx I haven't seen.
-                requestedTx = self.seen[targetHash]
+                target_hash = msg.content
+                assert target_hash in self.seen_tx  # I should never get a request for a tx I haven't seen.
+                requestedTx = self.seen_tx[target_hash]
                 self.sendMsg(msg.sender, Message(self.id, Type.BLOCK, requestedTx))
-        if needToCheck or (self.hasSheep() and forceSheepCheck):  # Have to check every time if has sheep.
-            self.checkAll()
+        if need_to_check or (self.hasSheep() and force_sheep_check):  # Have to check every time if has sheep.
+            self.checkAllTx()
 
-    def postStep(self):
+    def attemptToMakeTx(self):
+        """Attempt to make a new transaction (according to protocol's generation probability).
+        """
+
         if random.random() < self.simulation.protocol.transaction_generation_probability:  # Chance to generate a new tx (important that this happens AFTER processing messages).
             newtx = self.makeTx()  # ABSTRACT - Make a new tx.
-            self.hadChangeLastStep = True
-            self.handleTx(newtx, self.id)
-            self.checkAll()
+            self.changed_last_step = True
+            self.handleNewTx(newtx, self.id)
+            self.checkAllTx()
 
     # ==ABSTRACT====================================
     # Copy and overwrite these method in subclasses.
 
     def makeTx(self):
-        """return tx
-        make sure to append to self.over.allTx
+        """Makes a new transaction, connects it to the chain, and returns it.
+
+        Returns:
+            Tx -- Newly created transaction.
         """
-        newtx = tx.Tx(self.simulation.tick, self.id, self.id_bag.getNextId())
+        newtx = transaction.Tx(self.simulation.tick, self.id, self.id_bag.getNextId())
         self.simulation.all_tx.append(newtx)
         return newtx
 
     def checkReissues(self):
-        """a chance for the miner to put its need-to-reissue tx in o.IdBag"""
+        """Miner adds any ids that need to be reiussed to its idBag.
+        """
         return None
 
     def hasSheep(self):
-        """returns whether miner has sheep"""
+        """        
+        Returns:
+            bool -- True if the miner has sheep, False otherwise.
+        """
         return False
 
-    def process(self, t, sender):
-        """update view
-        return list of tx to broadcast
-        """
-        t.addEvent(self.simulation.tick, self.id, tx.State.CONSENSUS)
-        return [t]
+    def processNewTx(self, new_tx, sender_id):
+        """Add new_tx to the miner's view of the blockchain.
 
-    def checkAll(self):
-        """check all nodes for consensus (calling Tau)"""
+        Arguments:
+            new_tx {Tx} -- New transaction to add.
+            sender_id {int} -- Id of the node that sent us new_tx.
+
+        Returns:
+            list(Tx) -- List of transactions to broadcast to neighbors.
+        """
+        new_tx.addEvent(self.simulation.tick, self.id, transaction.State.CONSENSUS)
+        return [new_tx]
+
+    def checkAllTx(self):
+        """Check all nodes for consensus (runs an implicit "tau function" on each node, but all at once because it's faster), and whether sheep need to be reissued.
+        """
         return None
 
-    def removeSheep(self, i):
-        """overseer will call this to tell the miner that it doesn't have to shepherd an id anymore"""
+    def removeSheep(self, sheep_id):
+        """Overseer will call this to tell the miner that it doesn't have to shepherd an id anymore.
+
+        Arguments:
+            sheep_id {int} -- Id of tx to remove from sheep_tx.
+        """
         return None

@@ -6,18 +6,23 @@ from pprint import pformat
 class DistributionType(Enum):
     """Types of distributions to sample from.
     """
+
     UNIFORM = 1,
     GAUSSIAN = 2,
     LAPLACIAN = 3
 
 
 class Distribution:
+    """Allows for sampling from different types of probabilistic distributions.
+    """
+
     def __init__(self, settings):
         """Parses the settings in the value parameter.
 
         Arguments:
             settings {dict} -- The setings for the distribution.
         """
+
         self.distribution_type = DistributionType[settings['type']]
         if self.distribution_type == DistributionType.UNIFORM:
             self.low = settings['low']
@@ -50,7 +55,17 @@ class Distribution:
             raise NotImplementedError("Distribution type not yet implemented")
 
     def __str__(self):
+        """        
+        Returns:
+            str -- String representation of object.
+        """
+
         return pformat(self.__dict__, indent=12)
 
     def __repr__(self):
+        """        
+        Returns:
+            str -- String representation of object.
+        """
+
         return pformat(self.__dict__, indent=12)
