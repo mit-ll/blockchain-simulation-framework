@@ -2,6 +2,7 @@ from enum import Enum
 import json
 from pprint import pformat
 
+import id_bag
 import protocols
 
 
@@ -42,6 +43,22 @@ class ProtocolSettings:
             return protocols.bitcoin.Bitcoin
         elif self.protocol_type == ProtocolType.IOTA:
             return protocols.iota.Iota
+        else:
+            raise NotImplementedError("Selected protocol type is not implemented")
+
+    def getIdBag(self, simulation):
+        """Returns and IdBag object for a miner. Each miner should call this before the simulation starts.
+
+        Arguments:
+            simulation {Simulation} -- Simulation object that the idBag(s) will use to keep track of the next id.
+
+        Returns:
+            IdBag -- The IdBag object the miner should use during the simulation.
+        """
+        if self.protocol_type == ProtocolType.BITCOIN:
+            return id_bag.getSingleBag(simulation)  # All bitcoin miners share one "pool" of tx.
+        elif self.protocol_type == ProtocolType.IOTA:
+            return id_bag.IdBag(simulation)  # Iota miners are responsible for their shepherding their own tx.
         else:
             raise NotImplementedError("Selected protocol type is not implemented")
 

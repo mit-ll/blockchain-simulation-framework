@@ -2,50 +2,9 @@ import sys
 import random
 import time
 import pickle
-import networkx as nx
-import miner
-import overseer
 import tx
 
-
-def setupSim(o):
-    """returns graph with Miner objects attached to nodes"""
-    # TODO: different topologies
-    g = nx.random_geometric_graph(o.numMiners, 0.125)
-
-    if not nx.is_connected(g):  # make sure graph is connected
-        return setupSim(o)
-    else:
-        gen = tx.Tx(-1, None, o.idBag.getNextId())  # genesis tx
-        o.allTx.append(gen)
-        for i in g.nodes:
-            g.nodes[i]['miner'] = o.getMinerClass()(i, gen, g, o)  # include genesis tx
-        return g
-
-
-def runSim(g, o):
-    o.tick = 0
-    adjs = {}  # cache g.neighbors; REPLACE for dynamic topology!
-    while True:
-        o.idBag.clear()
-        for i in g.nodes:
-            if i not in adjs:
-                adjs[i] = list(g.neighbors(i))
-            g.nodes[i]['miner'].step(adjs[i])  # process messages, populate reissues
-        for i in g.nodes:
-            g.nodes[i]['miner'].checkReissues()  # add reissues to o.idBag
-        for i in g.nodes:
-            g.nodes[i]['miner'].postStep(adjs[i])  # if win PoW lottery, gen new tx
-        for i in g.nodes:
-            g.nodes[i]['miner'].flushMsgs()
-
-        if o.idBag.peekNextId() >= o.maxTx and o.txGenProb > 0:
-            o.txGenProb = -1
-        anyHaveMsg = bool([True for i in g.nodes if g.nodes[i]['miner'].queue])
-        if o.txGenProb <= 0 and not anyHaveMsg:  # run until no miners have messages
-
-            break
-        o.tick += 1
+# NO LONGER USED, TEMPORARILY PRESERVED FOR REFERENCE ONLY
 
 # ==REPORTS===========================
 
@@ -115,22 +74,3 @@ def reports(g, o):
         'allTx': o.allTx
     }
     pickle.dump(out, open(o.outFile, 'w'))
-
-
-if __name__ == "__main__":
-    fname = 'sim.json'
-    if len(sys.argv) > 1:
-        fname = sys.argv[1]
-    o = overseer.Overseer(fname)
-    print o
-    start = time.time()
-    g = setupSim(o)
-    runSim(g, o)
-    print time.time() - start
-    reports(g, o)
-
-# Time trials (parens is w/o caching adj)
-# Target: 50 tx
-# No. of miners:	200	 1000	5000	10000
-#  Naive miners:	(7s) (73s)	(6226s)	"Killed"
-#  Bitcoin:			9s	 137s			"Killed"

@@ -1,9 +1,10 @@
 from enum import Enum
 import json
-import networkx
+import networkx as nx
 from pprint import pformat
 
 from distribution import Distribution
+
 
 class TopologyType(Enum):
     """Types of miner topologies.
@@ -55,14 +56,18 @@ class TopologySettings:
             if self.topology_type == TopologyType.GEOMETRIC_UNIFORM_DELAY or self.topology_type == TopologyType.LOBSTER_UNIFORM_DELAY:
                 # Graphs with uniform delays for message transmission.
                 if self.topology_type == TopologyType.GEOMETRIC_UNIFORM_DELAY:
-                    graph = networkx.random_geometric_graph(self.number_of_miners, self.radius)
+                    graph = nx.random_geometric_graph(self.number_of_miners, self.radius)
                 elif self.topology_type == TopologyType.LOBSTER_UNIFORM_DELAY:
-                    graph = networkx.random_lobster(self.number_of_miners, self.p1, self.p2)
+                    graph = nx.random_lobster(self.number_of_miners, self.p1, self.p2)
 
                 for edge in graph.edges:
                     graph.edges[edge]['network_delay'] = self.network_delay
             else:
                 raise NotImplementedError("Selected topology type is not implemented.")
+        if not nx.is_connected(graph):
+            return self.generateMinerGraph()
+        else:
+            return graph
 
     def __str__(self):
         return pformat(self.__dict__, indent=8)

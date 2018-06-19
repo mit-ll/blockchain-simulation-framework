@@ -8,8 +8,8 @@ import bitcoin
 class Iota(bitcoin.Bitcoin):
     name = "Iota"
 
-    def __init__(self, i, gen, g, o):
-        bitcoin.Bitcoin.__init__(self, i, gen, g, o)
+    def __init__(self, id, genesis_tx, graph, simulation):
+        bitcoin.Bitcoin.__init__(self, id, genesis_tx, graph, simulation)
 
     def getNewParents(self):
         """returns list of 1 or 2 parent tx for new tx"""
@@ -53,7 +53,7 @@ class Iota(bitcoin.Bitcoin):
         """return tx
         make sure to append to self.over.allTx
         """
-        newtx = tx.Tx(self.over.tick, self.id, self.over.idBag.getNextId())
+        newtx = tx.Tx(self.simulation.tick, self.id, self.id_bag.getNextId())
         parents = self.getNewParents()
         assert parents  # should always have at least one (genesis tx)
         for parent in parents:
@@ -61,7 +61,7 @@ class Iota(bitcoin.Bitcoin):
             assert h in self.chain
             newtx.pointers.append(h)
         self.sheep.add(newtx)
-        self.over.allTx.append(newtx)
+        self.simulation.all_tx.append(newtx)
         return newtx
 
     def checkAll(self):
@@ -70,13 +70,13 @@ class Iota(bitcoin.Bitcoin):
         for node in self.chain.values():  # go through all nodes
             if self.reachableByAll(node):
                 if node.tx not in self.accepted:
-                    node.tx.addEvent(self.over.tick, self.id, tx.State.CONSENSUS)
+                    node.tx.addEvent(self.simulation.tick, self.id, tx.State.CONSENSUS)
                     self.accepted.add(node.tx)
                 if node.tx.id in self.reissue:
                     self.reissue.remove(node.tx.id)
             else:
                 if node.tx in self.accepted:
-                    node.tx.addEvent(self.over.tick, self.id, tx.State.DISCONSENSED)
+                    node.tx.addEvent(self.simulation.tick, self.id, tx.State.DISCONSENSED)
                     self.accepted.remove(node.tx)
                 if node.tx in self.sheep and self.needsReissue(node):
                     self.reissue.add(node.tx.id)

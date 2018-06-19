@@ -18,11 +18,11 @@ class Node:
 class Bitcoin(miner.Miner):
     name = "Bitcoin"
 
-    def __init__(self, i, gen, g, o):
-        miner.Miner.__init__(self, i, gen, g, o)  # calls self.start()
-        self.root = Node(gen)
+    def __init__(self, id, genesis_tx, graph, simulation):
+        miner.Miner.__init__(self, id, genesis_tx, graph, simulation)  # calls self.start()
+        self.root = Node(genesis_tx)
         self.chain = {}  # maps has to nodes whose tx has that hash
-        self.chain[gen.hash()] = self.root
+        self.chain[genesis_tx.hash()] = self.root
         self.front = set([self.root])  # update this as nodes are added instead of recomputing!
         self.accepted = set()  # set of tx I've accepted (only used to avoid spamming tx.history events); don't count on this for reporting, use tx.history instead
         self.root.tx.addEvent(-1, self.id, tx.State.CONSENSUS)
@@ -51,7 +51,7 @@ class Bitcoin(miner.Miner):
                 parents = [(self.findInChain(p), p) for p in t.pointers]  # works for both bitcoin and iota
                 if None not in [p[0] for p in parents]:
                     assert t.hash() not in self.chain  # make sure I've never seen this tx before
-                    t.addEvent(self.over.tick, self.id, tx.State.PRE)
+                    t.addEvent(self.simulation.tick, self.id, tx.State.PRE)
                     self.chain[t.hash()] = n
                     broadcast.append(t)
                     for parent, pointer in parents:
@@ -81,7 +81,7 @@ class Bitcoin(miner.Miner):
         """
         if not node.children:
             # the only portion of the the checks at the end of this function that need to be run on leaf nodes
-            if maxDepth > 0 and node.tx in self.sheep and d < maxDepth - self.over.bitcoinAcceptDepth:
+            if maxDepth > 0 and node.tx in self.sheep and d < maxDepth - self.simulation.protocol.accept_depth:
                 self.reissue.add(node.tx.id)
             return d
 
@@ -92,18 +92,18 @@ class Bitcoin(miner.Miner):
                 mx = i
 
         if maxDepth > 0:
-            if mx == maxDepth and mx - d >= self.over.bitcoinAcceptDepth:
+            if mx == maxDepth and mx - d >= self.simulation.protocol.accept_depth:
                 if node.tx not in self.accepted:
-                    node.tx.addEvent(self.over.tick, self.id, tx.State.CONSENSUS)
+                    node.tx.addEvent(self.simulation.tick, self.id, tx.State.CONSENSUS)
                     self.accepted.add(node.tx)
                 if node.tx.id in self.reissue:
                     self.reissue.remove(node.tx.id)  # accepted, so it doesn't need to be reiussed (this will happen because reissued tx are still saved in old forks)
             elif mx != maxDepth:
                 if node.tx in self.accepted:
-                    node.tx.addEvent(self.over.tick, self.id, tx.State.DISCONSENSED)
+                    node.tx.addEvent(self.simulation.tick, self.id, tx.State.DISCONSENSED)
                     self.accepted.remove(node.tx)
                 # below:first condition says that it's a sheep on an unaccepted fork, second condition says whether it's time to rebroadcast (max depth of fork is 6+ deep)
-                if node.tx in self.sheep and mx < maxDepth - self.over.bitcoinAcceptDepth:
+                if node.tx in self.sheep and mx < maxDepth - self.simulation.protocol.accept_depth:
                     self.reissue.add(node.tx.id)  # the order these will be added to reissue is leaf-up
         return mx
 
@@ -113,13 +113,13 @@ class Bitcoin(miner.Miner):
         """return tx
         make sure to append to self.over.allTx
         """
-        newtx = tx.Tx(self.over.tick, self.id, self.over.idBag.getNextId())
+        newtx = tx.Tx(self.simulation.tick, self.id, self.id_bag.getNextId())
         sortedFronts = sorted(self.front, reverse=True, key=lambda n: n.depth)
         choices = [n for n in sortedFronts if n.depth == sortedFronts[0].depth]  # only consider the deepest front nodes
         parent = random.choice(choices)
         newtx.pointers.append(parent.tx.hash())
         self.sheep.add(newtx)
-        self.over.allTx.append(newtx)
+        self.simulation.all_tx.append(newtx)
         return newtx
 
     # How BITCOIN miners handle shepherding
@@ -129,7 +129,7 @@ class Bitcoin(miner.Miner):
     def checkReissues(self):
         """a chance for the miner to put its need-to-reissue tx in o.IdBag"""
         for i in self.reissue:
-            self.over.idBag.addId(i, self)
+            self.id_bag.addId(i, self)
 
     def hasSheep(self):
         """returns whether miner has sheep"""
@@ -147,7 +147,7 @@ class Bitcoin(miner.Miner):
         """check all nodes for consensus (runs an implicit "tau" on each node, but all at once because it's faster)"""
         self.reissue = set()  # only reset when you checkAll so that it stays full
         maxDepth = self.checkRec(self.root)
-        if maxDepth < self.over.bitcoinAcceptDepth:
+        if maxDepth < self.simulation.protocol.accept_depth:
             return
         self.checkRec(self.root, maxDepth)
 

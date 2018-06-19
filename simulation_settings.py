@@ -38,6 +38,19 @@ class SimulationSettings:
         self.topology = TopologySettings(data['topology'])
         self.protocol = ProtocolSettings(data['protocol'])
 
+    def shouldTerminate(self, simulation):
+        """Returns True if the simulation termination conidtion is met, False otherwise.
+
+        Arguments:
+            simulation {Simulation} -- The simulation in question.
+        """
+        if self.termination_condition == TerminationCondition.NUMBER_OF_GENERATED_TRANSACTIONS:
+            return simulation.next_id > self.termination_value  # conditioned on next id, not len(all_tx) so that reiusses don't count.
+        elif self.termination_condition == TerminationCondition.NUMBER_OF_TIME_TICKS:
+            return simulation.tick > self.termination_value
+        else:
+            raise NotImplementedError("Selected termination condition is not implemented.")
+
     def __str__(self):
         return pformat(self.__dict__, indent=4)
 
