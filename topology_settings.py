@@ -68,10 +68,12 @@ class TopologySettings:
                 elif self.topology_type == TopologyType.LOBSTER_UNIFORM_DELAY:
                     graph = nx.random_lobster(self.number_of_miners, self.p1, self.p2)
 
+                # Note: we'll need to do this for static topologies when they are implemented.
                 for edge in graph.edges:
                     graph.edges[edge]['network_delay'] = self.network_delay
             else:
                 raise NotImplementedError("Selected topology type is not implemented.")
+
         if not nx.is_connected(graph):
             return self.generateMinerGraph()
         else:

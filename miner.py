@@ -1,3 +1,4 @@
+from enum import Enum
 import random
 import transaction
 
@@ -20,7 +21,7 @@ class Message:
         self.content = content
 
 
-class Type:
+class Type(Enum):
     """Enumeration of message types.
     """
 

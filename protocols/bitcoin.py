@@ -86,7 +86,7 @@ class Bitcoin(miner.Miner):
                 parents = [(self.findInChain(parent), parent) for parent in tx_to_add.pointers]  # Find node associated with each parent (works for both bitcoin and iota).
                 if None not in [p[0] for p in parents]:
                     assert tx_to_add.hash() not in self.chain_pointers  # Make sure I've never seen this tx before.
-                    tx_to_add.addEvent(self.simulation.tick, self.id, transaction.State.PRE)
+                    tx_to_add.addEvent(self.simulation.tick, self.id, transaction.State.PRE_CONSENSUS)
                     self.chain_pointers[tx_to_add.hash()] = node_to_add
                     to_broadcast.append(tx_to_add)
                     for parent, pointer in parents:

@@ -39,7 +39,8 @@ def showMaxHist(allTx):
     return max_times
 
 
-def analyze(fname):
+#TODO needs to be completely rewritten to support deserializing from JSON and generating the right kinds of graphs (CDF, etc)
+def analyze(data):
     """Logs a report of the following statistics:
     Whether the simulated protocol was stable (a protocol on a given topology is stable if once a given transaction enters consensus it never leaves consensus).
     Whether the simulated protocol reached eventual consensus (a protocol on a given topology has eventual consensus if all transactions are eventually accepted by the miners in the protocol).
@@ -48,22 +49,17 @@ def analyze(fname):
         The time it took for all miners to accept it.
 
     Arguments:
-        fname {str} -- File name to read data from.
+        data {dict} -- Dictionary of data; see simulation.generateData for contents.
 
     Returns:
         dict -- Dictionary of data; see simulation.generateData for contents.
     """
 
-    report = None
-    with open(fname) as file:
-        report = pickle.load(file)
-    if not report:
-        return
-    disconsensed_tx = report['disconsensed_tx']
-    partially_consensed_tx = report['partially_consensed_tx']
-    consensed_tx = report['consensed_tx']
-    #never_consensed_tx = report['never_consensed_tx']
-    all_tx = report['all_tx']
+    disconsensed_tx = data['disconsensed_tx']
+    partially_consensed_tx = data['partially_consensed_tx']
+    consensed_tx = data['consensed_tx']
+    #never_consensed_tx = data['never_consensed_tx']
+    all_tx = data['all_tx']
 
     logging.info("Number of consensed tx: %d" % len(consensed_tx))
     if disconsensed_tx:
@@ -73,8 +69,4 @@ def analyze(fname):
 
     # TODO: figure how to log prob dist; write to disk?
     showMaxHist(all_tx)
-    return report
-
-
-if __name__ == "__main__":
-    analyze(sys.argv[1])
+    return data

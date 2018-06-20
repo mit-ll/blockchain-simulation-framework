@@ -1,3 +1,4 @@
+from enum import Enum
 import hashlib
 
 
@@ -18,6 +19,7 @@ class Tx:
         self.birthday = curr_tick
         self.pointers = []  # Backpointer(s) are an inherent part of the tx, each miner takes it or leaves it as a whole.
         self.history = []  # Event history.
+        self.addEvent(curr_tick, miner_id, State.CREATED)
         self.stats = {}  # Filled in after simulation for data.
 
     def hash(self):
@@ -67,11 +69,11 @@ class Event:
         self.state = state
 
 
-class State:
+class State(Enum):
     """Enumeration of transaction states.
     """
 
-    UNKNOWN = 0  # Not needed; if a miner doesn't show up in a tx's history, it's in this state.
-    PRE = 1
+    CREATED = 0
+    PRE_CONSENSUS = 1
     CONSENSUS = 2
     DISCONSENSED = 3
