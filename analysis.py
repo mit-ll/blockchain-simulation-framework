@@ -11,68 +11,78 @@ def plotCDF(data):
     plt.plot(np.sort(data), np.linspace(0, 1, len(data), endpoint=False))
 
 
-def showMultiCDF(run, exclude_genesis=True):
+def showMultiCDF(run_results, exclude_genesis=True):
     """Displays overlaid CDFs of the max time it took for consensus to be reached for each transaction the results of one run.
 
     Arguments:
-        run {dict} -- Dictionary mapping tx id to list of times it took for miners to reach consensus for that tx.
+        run_results {dict} -- Dictionary mapping tx id to list of times it took for miners to reach consensus for that tx.
 
     Keyword Arguments:
         exclude_genesis {bool} -- Whether to exclude the genesis tx. (default: {True})
     """
 
-    for tx_id in run:
+    for tx_id in run_results:
         if exclude_genesis and tx_id == 0:
             continue
-        plotCDF(run[tx_id])
+        plotCDF(run_results[tx_id]['times'])
     plt.show()
 
 
-def showTotalCDF(results, exclude_genesis=True):
+def showTotalCDF(data, exclude_genesis=True):
     """Displays an aggregate CDF of the max time it took for consensus to be reached for every transaction in a set of results.
 
     Arguments:
-        results {list(dict)} -- List of dictionaries mapping tx id to list of times it took for miners to reach consensus for that tx, one dict for each run.
+        data {list((networkx.Graph, dict))} -- Output of loadData below.
 
     Keyword Arguments:
         exclude_genesis {bool} -- Whether to exclude the genesis tx. (default: {True})
     """
 
     all_times = []
-    for run in results:
-        for tx_id in run:
+    for run in data:
+        times = run[1]
+        for tx_id in times:
             if exclude_genesis and tx_id == 0:
                 continue
-            all_times += run[tx_id]
+            all_times += times[tx_id]['times']  # Combines all histogram data into one.
     plotCDF(all_times)
     plt.show()
 
+def loadData(data_dir):
+    """Loads data from files in data_dir into a list of dictionaries mapping tx id to list of times it took for miners to reach consensus for that tx, one dict for each run.
 
-def analyze(data_dir):
-    data = []
+    Arguments:
+        data_dir {str} -- Directory where data files should be loaded from.
+
+    Returns:
+        {list((networkx.Graph, dict))} -- List of (graph, dictionary) tuples--one tuple for each run--in which the dictionary maps tx id to a (event, list) tuple of the tx's creation and times it took for miners to reach consensus for that tx.
+    """
+
+    raw_data = []
     for fname in os.listdir(data_dir):
         with open(data_dir+fname, 'r') as infile:
-            data.append(json.load(infile, cls=GraphDecoder))
-    if not data:
+            raw_data.append(json.load(infile, cls=GraphDecoder))
+    if not raw_data:
         return
 
-    results = []
-    for run in data:
-        run_results = {}
+    data = []
+    for run in raw_data:
+        run_results = defaultdict(dict)
         for tx_id_str in run['tx_histories']:
             history = run['tx_histories'][tx_id_str]
             tx_id = int(tx_id_str)
             max_times = defaultdict(int)
-            birthday = None
+            created = None
             for event in history:  # Event is [time_step, miner_id, transaction.State].
                 if event[2] == 'CREATED':
-                    birthday = event[0]
+                    created = event
                     continue
                 if event[2] != 'CONSENSUS':
                     continue
-                elapsed = event[0] - birthday
+                elapsed = event[0] - created[0]
                 if max_times[event[1]] < elapsed:
                     max_times[event[1]] = elapsed
-            run_results[tx_id] = max_times.values()
-        results.append(run_results)
-    return results
+            run_results[tx_id]['created'] = created
+            run_results[tx_id]['times'] = max_times.values()
+        data.append((run['graph'], run_results))
+    return data

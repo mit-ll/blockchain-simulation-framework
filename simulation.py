@@ -37,7 +37,7 @@ class Simulation:
 
         Arguments:
             settings {SimulationSettings} -- Stores all settings for the run.
-            graph {networkx.graph} -- Graph object to run the simulation on; should have edge delays.
+            graph {networkx.Graph} -- Graph object to run the simulation on; should have edge delays.
         """
 
         self.thread_id = thread_id
@@ -90,7 +90,7 @@ class Simulation:
     def compileData(self):
         """Condenses transaction histories into one history per id.
         Populates self.json_data with data ready to serialize to JSON:
-            graph: The simulation's networkx.graph stripped of simulation objects.
+            graph: The simulation's networkx.Graph stripped of simulation objects.
             tx_histories: Map of tx id to condensed history of event tuples.
         (Can only be run after simulation is completed.)
         """

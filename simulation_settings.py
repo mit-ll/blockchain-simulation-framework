@@ -46,7 +46,7 @@ class SimulationSettings:
 
         # Parameterize in JSON later?
         self.allow_termination_cooldown = True
-        self.hard_limit_ticks = 1000
+        self.hard_limit_ticks = 1000  # Should this be a function of the number of miners?
 
         # Load the other settings objects.
         self.topology = TopologySettings(data['topology'])
