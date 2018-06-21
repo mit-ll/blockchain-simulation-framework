@@ -44,7 +44,7 @@ class IdBag:
         self.bag = []
 
 
-singleton = None
+singletons = {}
 
 
 def getSingleBag(simulation):
@@ -56,7 +56,7 @@ def getSingleBag(simulation):
         IdBag -- A singleton IdBag object.
     """
 
-    global singleton
-    if singleton is None:
-        singleton = IdBag(simulation)
-    return singleton
+    global singletons
+    if simulation.thread_id not in singletons:
+        singletons[simulation.thread_id] = IdBag(simulation)
+    return singletons[simulation.thread_id]
