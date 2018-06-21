@@ -41,9 +41,9 @@ class Bitcoin(miner.Miner):
         self.chain_pointers = {}  # Maps hash to node whose tx has that hash.
         self.chain_pointers[genesis_tx.hash()] = self.root
         self.frontier_nodes = set([self.root])  # Update this as nodes are added instead of recomputing deepest nodes.
-        self.accepted_tx = set()  # Set of tx I've accepted (only used to avoid spamming tx.history events); don't count on this for reporting, use tx.history instead.
+        self.consensed_tx = set()  # Set of tx I've accepted (only used to avoid spamming tx.history events); don't count on this for reporting, use tx.history instead.
         self.root.tx.addEvent(-1, self.id, transaction.State.CONSENSUS)
-        self.accepted_tx.add(self.root.tx)
+        self.consensed_tx.add(self.root.tx)
         self.sheep_tx = set()  # Queue of tx to shepherd.
         self.reissue_ids = set()  # Temporary set of ids that need to be reissued (populated anew each time checkAll is called).
         self.orphan_nodes = []
@@ -140,15 +140,15 @@ class Bitcoin(miner.Miner):
 
         if max_depth > 0:
             if local_max == max_depth and local_max - curr_depth >= self.simulation.protocol.accept_depth:
-                if node.tx not in self.accepted_tx:
+                if node.tx not in self.consensed_tx:
                     node.tx.addEvent(self.simulation.tick, self.id, transaction.State.CONSENSUS)
-                    self.accepted_tx.add(node.tx)
+                    self.consensed_tx.add(node.tx)
                 if node.tx.id in self.reissue_ids:
-                    self.reissue_ids.remove(node.tx.id)  # Accepted, so it doesn't need to be reiussed (this will happen because reissued tx are still saved in old forks).
+                    self.reissue_ids.remove(node.tx.id)  # Consensed, so it doesn't need to be reiussed (this will happen because reissued tx are still saved in old forks).
             elif local_max != max_depth:
-                if node.tx in self.accepted_tx:
+                if node.tx in self.consensed_tx:
                     node.tx.addEvent(self.simulation.tick, self.id, transaction.State.DISCONSENSED)
-                    self.accepted_tx.remove(node.tx)
+                    self.consensed_tx.remove(node.tx)
                 # Below: first condition says that it's a sheep on an unaccepted fork, second condition says whether it's time to rebroadcast (max depth of fork is 6+ deep).
                 if node.tx in self.sheep_tx and local_max < max_depth - self.simulation.protocol.accept_depth:
                     self.reissue_ids.add(node.tx.id)  # The order these will be added to reissue is leaf-up.

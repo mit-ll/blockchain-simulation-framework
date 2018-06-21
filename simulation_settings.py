@@ -43,7 +43,7 @@ class SimulationSettings:
         self.termination_value = data['terminationValue']
 
         self.target_termination_ticks = -1
-        
+
         # Parameterize in JSON later?
         self.allow_termination_cooldown = True
         self.hard_limit_ticks = 1000

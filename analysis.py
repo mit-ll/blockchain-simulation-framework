@@ -1,72 +1,78 @@
-import sys
-import pickle
+from collections import defaultdict
+import json
 import matplotlib.pyplot as plt
-import logging
+import numpy as np
+import os
+
+from json_endec import GraphDecoder
 
 
-def showHist(tx):
-    """Displays and returns a histogram of how long it took each miner to come to conesensus for a given transaction.
+def plotCDF(data):
+    plt.plot(np.sort(data), np.linspace(0, 1, len(data), endpoint=False))
+
+
+def showMultiCDF(run, exclude_genesis=True):
+    """Displays overlaid CDFs of the max time it took for consensus to be reached for each transaction the results of one run.
 
     Arguments:
-        tx {Tx} -- Transaction to show histogram for.
+        run {dict} -- Dictionary mapping tx id to list of times it took for miners to reach consensus for that tx.
 
-    Returns:
-        list(int) -- Histogram of how long it took each miner to come to conesensus.
+    Keyword Arguments:
+        exclude_genesis {bool} -- Whether to exclude the genesis tx. (default: {True})
     """
 
-    if not tx.stats:
-        return None
-    data = tx.stats['times'].values()
-    plt.hist(data)
+    for tx_id in run:
+        if exclude_genesis and tx_id == 0:
+            continue
+        plotCDF(run[tx_id])
     plt.show()
-    return data  # TODO: maybe just return t.stats['times']?
 
 
-def showMaxHist(allTx):
-    """Displays and returns a histogram of the max time it took for consensus to be reached for each transaction in list.
+def showTotalCDF(results, exclude_genesis=True):
+    """Displays an aggregate CDF of the max time it took for consensus to be reached for every transaction in a set of results.
 
     Arguments:
-        allTx {list(Tx)} -- List of tx to generate histogram for.
+        results {list(dict)} -- List of dictionaries mapping tx id to list of times it took for miners to reach consensus for that tx, one dict for each run.
 
-    Returns:
-        list(int) -- Histogram of the max time it took for consensus to be reached for each transaction.
+    Keyword Arguments:
+        exclude_genesis {bool} -- Whether to exclude the genesis tx. (default: {True})
     """
 
-    max_times = [tx.stats['max_time'] for tx in allTx if tx.pointers and tx.stats]
-    assert max_times
-    plt.hist(max_times)  # TODO: Set bins manually?
+    all_times = []
+    for run in results:
+        for tx_id in run:
+            if exclude_genesis and tx_id == 0:
+                continue
+            all_times += run[tx_id]
+    plotCDF(all_times)
     plt.show()
-    return max_times
 
 
-#TODO needs to be completely rewritten to support deserializing from JSON and generating the right kinds of graphs (CDF, etc)
-def analyze(data):
-    """Logs a report of the following statistics:
-    Whether the simulated protocol was stable (a protocol on a given topology is stable if once a given transaction enters consensus it never leaves consensus).
-    Whether the simulated protocol reached eventual consensus (a protocol on a given topology has eventual consensus if all transactions are eventually accepted by the miners in the protocol).
-    Probability distributions for each transactions:
-        The time it took for each miner to accept it.
-        The time it took for all miners to accept it.
+def analyze(data_dir):
+    data = []
+    for fname in os.listdir(data_dir):
+        with open(data_dir+fname, 'r') as infile:
+            data.append(json.load(infile, cls=GraphDecoder))
+    if not data:
+        return
 
-    Arguments:
-        data {dict} -- Dictionary of data; see simulation.generateData for contents.
-
-    Returns:
-        dict -- Dictionary of data; see simulation.generateData for contents.
-    """
-
-    disconsensed_tx = data['disconsensed_tx']
-    partially_consensed_tx = data['partially_consensed_tx']
-    consensed_tx = data['consensed_tx']
-    #never_consensed_tx = data['never_consensed_tx']
-    all_tx = data['all_tx']
-
-    logging.info("Number of consensed tx: %d" % len(consensed_tx))
-    if disconsensed_tx:
-        logging.info("Some tx lost consensus after gaining it: %s" % [t.id for t in disconsensed_tx])
-    if partially_consensed_tx:
-        logging.info("Consensus has still not been reached for some tx: %s" % [t.id for t in partially_consensed_tx])
-
-    # TODO: figure how to log prob dist; write to disk?
-    showMaxHist(all_tx)
-    return data
+    results = []
+    for run in data:
+        run_results = {}
+        for tx_id_str in run['tx_histories']:
+            history = run['tx_histories'][tx_id_str]
+            tx_id = int(tx_id_str)
+            max_times = defaultdict(int)
+            birthday = None
+            for event in history:  # Event is [time_step, miner_id, transaction.State].
+                if event[2] == 'CREATED':
+                    birthday = event[0]
+                    continue
+                if event[2] != 'CONSENSUS':
+                    continue
+                elapsed = event[0] - birthday
+                if max_times[event[1]] < elapsed:
+                    max_times[event[1]] = elapsed
+            run_results[tx_id] = max_times.values()
+        results.append(run_results)
+    return results

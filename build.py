@@ -114,8 +114,11 @@ def run(file='sim.json', out='./out/data.json'):
 
 
 @task()
-def analyze(data):
-    pass
+def analyze(data_dir='./out/'):
+    results = analysis.analyze(data_dir)
+    for run in results:
+        analysis.showMultiCDF(run)
+    analysis.showTotalCDF(results)
 
 
 

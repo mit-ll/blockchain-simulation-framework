@@ -99,14 +99,14 @@ class Iota(bitcoin.Bitcoin):
         self.reissue_ids = set()  # Only reset when you checkAll so that it stays full!
         for node in self.chain_pointers.values():
             if self.reachableByAllFrontiers(node):
-                if node.tx not in self.accepted_tx:
+                if node.tx not in self.consensed_tx:
                     node.tx.addEvent(self.simulation.tick, self.id, transaction.State.CONSENSUS)
-                    self.accepted_tx.add(node.tx)
+                    self.consensed_tx.add(node.tx)
                 if node.tx.id in self.reissue_ids:
                     self.reissue_ids.remove(node.tx.id)
             else:
-                if node.tx in self.accepted_tx:
+                if node.tx in self.consensed_tx:
                     node.tx.addEvent(self.simulation.tick, self.id, transaction.State.DISCONSENSED)
-                    self.accepted_tx.remove(node.tx)
+                    self.consensed_tx.remove(node.tx)
                 if node.tx in self.sheep_tx and self.needsReissue(node):
                     self.reissue_ids.add(node.tx.id)

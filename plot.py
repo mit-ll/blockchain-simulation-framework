@@ -39,7 +39,7 @@ def dagToDig(miner, node, digraph=None):
     if digraph is None:
         digraph = Digraph()
         digraph.graph_attr['rankdir'] = 'RL'
-    if node.tx in miner.accepted_tx:
+    if node.tx in miner.consensed_tx:
         digraph.node(node_id, label=nodeLabel(node), fillcolor='#ffff66', style='filled')
     else:
         digraph.node(node_id, label=nodeLabel(node))
