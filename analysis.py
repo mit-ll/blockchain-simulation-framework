@@ -40,13 +40,14 @@ def showTotalCDF(data, exclude_genesis=True):
 
     all_times = []
     for run in data:
-        times = run[1]
-        for tx_id in times:
+        run_results = run[1]
+        for tx_id in run_results:
             if exclude_genesis and tx_id == 0:
                 continue
-            all_times += times[tx_id]['times']  # Combines all histogram data into one.
+            all_times += run_results[tx_id]['times']  # Combines all histogram data into one.
     plotCDF(all_times)
     plt.show()
+
 
 def loadData(data_dir):
     """Loads data from files in data_dir into a list of dictionaries mapping tx id to list of times it took for miners to reach consensus for that tx, one dict for each run.
