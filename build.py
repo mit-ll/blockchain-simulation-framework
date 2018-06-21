@@ -7,6 +7,9 @@ import threading
 
 sys.path.append('.')
 import analysis
+
+import transaction  # DEBUG
+
 import plot
 from simulation_settings import SimulationSettings, TopologySelection
 from simulation import Simulation
@@ -32,12 +35,9 @@ def runOnce(settings, graph, thread_id=0):
 
 
 def runThreaded(settings, graph, thread_id, out_dir):
-    logging.info("in thread %d" % (thread_id))
     assert out_dir[-1] == '/'
     out_file = "%sdata%d.json" % (out_dir, thread_id)
     simulation = runOnce(settings, graph, thread_id)
-    logging.info("thread %d finished with %d ticks" % (thread_id, simulation.tick))
-    logging.info("writing to out file %s" % (out_file))
     simulation.writeData(out_file)
 
 
@@ -65,7 +65,6 @@ def runMonteCarlo(file='sim.json', out_dir='./out/'):
         thread = threading.Thread(target=runThreaded, args=[thread_settings, graph, i, out_dir])
         threads.append(thread)
         thread.start()
-        logging.info('Started MC %d' % i)
 
 
 @task()
@@ -84,7 +83,31 @@ def run(file='sim.json', out='./out/data.json'):
     simulation = runOnce(settings, graph)
 
     # DEBUG
+    g = simulation.graph
+    allMinerIds = set()
+    allMiners = []
+    for n in g.nodes:
+        m = g.nodes[n]['miner']
+        allMinerIds.add(m.id)
+        allMiners.append(m)
+    unc = []  # unconsensed tx (consensed by 1 or more but not all miners)
+    bad_miners = set([0])  # start with 0 for reference
+    for t in simulation.all_tx:
+        states = {}
+        for e in t.history:
+            states[e.miner_id] = e.state
+        s = set([i for i in states if states[i] == transaction.State.CONSENSUS])  # have to do it like this to capture FINAL state, not just "was this ever in consensus"
+        if s and allMinerIds - s:
+            bad_miners |= set(list(s)[:1])
+            unc.append(t)
+    if unc:
+        print "Consensus has still not been reached for some tx:", [t.id for t in unc]
+        print bad_miners
+        plot.plotAllDags([g.nodes[i]['miner'] for i in bad_miners])
+    else:
+        print "All tx consensed!"
     plot.plotDag(simulation.graph.nodes[0]['miner'])
+    # END DEBUG
 
     simulation.writeData(out)
     logging.info("Simulation time: %f" % (time.time() - start))

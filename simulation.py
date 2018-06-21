@@ -32,7 +32,7 @@ def addToTimes(times, miner_id, time, max_time):
 
 
 class Simulation:
-    def __init__(self, settings, graph,thread_id=0):
+    def __init__(self, settings, graph, thread_id=0):
         """Sets up a single run of the simulation with the given settings and graph
 
         Arguments:
@@ -40,7 +40,7 @@ class Simulation:
             graph {networkx.graph} -- Graph object to run the simulation on; should have edge delays.
         """
 
-        self.thread_id = thread_id #DEBUG
+        self.thread_id = thread_id
         self.tick = -1
         self.all_tx = []
         self.completed = False
@@ -70,20 +70,19 @@ class Simulation:
             return
         self.tick = 0
         while True:
-            if self.tick % 200 == 0:
-                logging.info("%d: tick %d" % (self.thread_id, self.tick))
             for node_index in self.graph.nodes:
                 self.graph.nodes[node_index]['miner'].id_bag.clear()
                 self.graph.nodes[node_index]['miner'].handleMsgs()  # Process messages, and populate reissues.
             for node_index in self.graph.nodes:
                 self.graph.nodes[node_index]['miner'].checkReissues()  # Add reissues to miner.id_bag.
-            for node_index in self.graph.nodes:
-                self.graph.nodes[node_index]['miner'].attemptToMakeTx()  # If miner wins PoW lottery, generate a new tx.
+            if self.settings.shouldMakeNewTx(self):
+                for node_index in self.graph.nodes:
+                    self.graph.nodes[node_index]['miner'].attemptToMakeTx()  # If miner wins PoW lottery, generate a new tx.
             for node_index in self.graph.nodes:
                 self.graph.nodes[node_index]['miner'].flushMsgs()
 
             if self.settings.shouldTerminate(self):
-                break  # TODO: allow messages to finish propogating? still terminate after a set number of ticks?
+                break
 
             self.tick += 1
         self.completed = True

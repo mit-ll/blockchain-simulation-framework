@@ -33,7 +33,7 @@ def dagToDig(miner, node, digraph=None):
     """
 
     global visited
-    node_id = node.tx.hash()
+    node_id = "%s%d" % (node.tx.hash(), miner.id)
     if node in visited:
         return digraph
     if digraph is None:
@@ -45,7 +45,7 @@ def dagToDig(miner, node, digraph=None):
         digraph.node(node_id, label=nodeLabel(node))
     visited.add(node)
     for child in node.children:
-        child_id = child.tx.hash()
+        child_id = "%s%d" % (child.tx.hash(), miner.id)
         digraph.edge(child_id, node_id)
         dagToDig(miner, child, digraph)
     return digraph
@@ -65,6 +65,28 @@ def plotDag(miner, fname='test.gv'):
     visited = set()
     digraph = dagToDig(miner, miner.root)
     digraph.render(fname, view=True)
+
+
+def plotAllDags(miners, fname='testall.gv'):
+    """Plot the DAGs of the miners' views of the blockchain.
+
+    Arguments:
+        miners {list(Miner)} -- Miners whose DAGs we want to plot.
+
+    Keyword Arguments:
+        fname {str} -- Filename to output Graphviz Dot File. (default: {'test.gv'})
+    """
+
+    global visited
+    first_digraph = None
+    for miner in miners:
+        visited = set()
+        digraph = dagToDig(miner, miner.root)
+        if not first_digraph:
+            first_digraph = digraph
+        else:
+            first_digraph.subgraph(digraph)
+    first_digraph.render(fname, view=True)
 
 
 def simplePlot(graph, pos=None):
