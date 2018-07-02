@@ -75,8 +75,7 @@ class SimulationSettings:
             raise NotImplementedError("Selected termination condition is not implemented.")
 
     def shouldTerminate(self, simulation):
-        """Returns True if the simulation should immediately terminate
-        (termination condition is met and either allow_termination_cooldown is False, cooldown is finished, or hard_limit is reached), False otherwise.
+        """Returns True if the simulation should immediately terminate (termination condition is met and either allow_termination_cooldown is False, cooldown is finished, or hard_limit is reached), False otherwise.
 
         Arguments:
             simulation {Simulation} -- The simulation in question.

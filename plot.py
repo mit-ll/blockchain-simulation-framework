@@ -58,7 +58,7 @@ def plotDag(miner, fname='test.gv'):
         miner {Miner} -- Miner whose DAG we want to plot.
 
     Keyword Arguments:
-        fname {str} -- Filename to output Graphviz Dot File. (default: {'test.gv'})
+        fname {str} -- Filename to output Graphviz DOT File. (default: {'test.gv'})
     """
 
     global visited
@@ -74,7 +74,7 @@ def plotAllDags(miners, fname='testall.gv'):
         miners {list(Miner)} -- Miners whose DAGs we want to plot.
 
     Keyword Arguments:
-        fname {str} -- Filename to output Graphviz Dot File. (default: {'test.gv'})
+        fname {str} -- Filename to output Graphviz DOT File. (default: {'test.gv'})
     """
 
     global visited

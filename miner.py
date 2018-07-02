@@ -8,8 +8,7 @@ class Message:
     """
 
     def __init__(self, sender_id, msg_type, content):
-        """[summary]
-
+        """
         Arguments:
             sender_id {int} -- Id of sending miner.
             msg_type {Type} -- Type of message.
@@ -94,6 +93,9 @@ class Miner:
 
     def broadcast(self, tx):
         """Broadcast tx to all adjacent miners.
+
+        Arguments:
+            tx {Tx} -- Transaction to broadcast.
         """
 
         for neighbor_id in self.adjacencies:

@@ -12,7 +12,7 @@ class Node:
     def __init__(self, tx):
         """
         Arguments:
-            t {Tx} -- The transaction that the node represents.
+            tx {Tx} -- The transaction that the node represents.
         """
 
         self.tx = tx

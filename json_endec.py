@@ -3,7 +3,11 @@ import networkx as nx
 
 import transaction
 
+
 class GraphEncoder(json.JSONEncoder):
+    """A JSONEncoder for serialzing networkx.Graph objects.    
+    """
+
     def default(self, obj):
         if isinstance(obj, nx.Graph):
             return {
@@ -13,9 +17,10 @@ class GraphEncoder(json.JSONEncoder):
         return super(GraphEncoder, self).default(obj)
 
 
-
-
 class GraphDecoder(json.JSONDecoder):
+    """A JSONEncoder for deserialzing networkx.Graph objects.    
+    """
+
     def __init__(self, *args, **kwargs):
         json.JSONDecoder.__init__(self, object_hook=self.object_hook, *args, **kwargs)
 

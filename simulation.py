@@ -15,11 +15,11 @@ def addToTimes(times, miner_id, time, max_time):
     Arguments:
         times {dict} -- Dictionary to add time to.
         miner_id {int} -- Id of miner.
-        t {int} -- Time in ticks that it took that miner to come to consensus on the tx.
-        mx {int} -- Current max time any miner to come to consensus on the tx.
+        time {int} -- Time in ticks that it took that miner to come to consensus on the tx.
+        max_time {int} -- Current max time for any miner to come to consensus on the tx.
 
     Returns:
-        int -- New max time any miner to come to consensus on the tx.
+        int -- New max time for any miner to come to consensus on the tx.
     """
 
     if miner_id not in times:
@@ -38,6 +38,9 @@ class Simulation:
         Arguments:
             settings {SimulationSettings} -- Stores all settings for the run.
             graph {networkx.Graph} -- Graph object to run the simulation on; should have edge delays.
+
+        Keyword Arguments:
+            thread_id {int} -- The thread number of this run of the simulation (used for IdBag). (default: {0})
         """
 
         self.thread_id = thread_id

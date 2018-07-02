@@ -3,8 +3,7 @@ class IdBag:
     """
 
     def __init__(self, simulation):
-        """[summary]
-
+        """
         Arguments:
             simulation {Simulation} -- Simulation that the bag will be used in (referenced for next_id when bag is empty).
         """

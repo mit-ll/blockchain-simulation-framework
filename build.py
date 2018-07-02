@@ -25,6 +25,9 @@ def runOnce(settings, graph, thread_id=0):
         settings {SimulationSettings} -- Settings for the simulation.
         graph {networkx.Graph} -- Graph of the miners.
 
+    Keyword Arguments:
+        thread_id {int} -- The thread number of this run of the simulation. (default: {0})
+
     Returns:
         Simulation -- Completed simulation object.
     """
@@ -35,6 +38,15 @@ def runOnce(settings, graph, thread_id=0):
 
 
 def runThreaded(settings, graph, thread_id, out_dir):
+    """Runs the simulation once, directing output to a thread-unique file. Intended to be used as the thread's target function.
+
+    Arguments:
+        settings {SimulationSettings} -- Stores all settings for the run.
+        graph {networkx.Graph} -- Graph object to run the simulation on; should have edge delays.
+        thread_id {[type]} -- The thread number of this run of the simulation.
+        out_dir {[type]} -- The directory where output should be written.
+    """
+
     assert out_dir[-1] == '/'
     out_file = "%sdata%d.json" % (out_dir, thread_id)
     simulation = runOnce(settings, graph, thread_id)
@@ -116,6 +128,12 @@ def run(file='sim.json', out='./out/data.json'):
 
 @task()
 def analyze(data_dir='./out/'):
+    """Analyzes the data stored in the given directory.
+
+    Keyword Arguments:
+        data_dir {str} -- Path to the directory containing data files. (default: {'./out/'})
+    """
+
     data = analysis.loadData(data_dir)
     for run in data:
         analysis.showMultiCDF(run[1])
