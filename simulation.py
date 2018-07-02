@@ -98,6 +98,9 @@ class Simulation:
         if not self.completed:
             raise Exception("Cannot generate data on a simulation that has not been run.")
 
+        if self.json_data:  # Don't generate data more than once.
+            return
+
         first_instances = {}  # Maps id to first isse of that id.
         for tx in self.all_tx:
             if tx.id not in first_instances:
@@ -127,8 +130,7 @@ class Simulation:
             fname {str} -- File name to write JSON to.
         """
 
-        if not self.json_data:  # Don't generate data more than once.
-            self.compileData()
+        self.compileData()
         dir_name = os.path.dirname(fname)
         if not os.path.exists(dir_name):
             os.makedirs(dir_name)

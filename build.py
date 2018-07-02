@@ -78,7 +78,7 @@ def run(file='sim.json', out='./out/data.json'):
 
     settings = SimulationSettings(file)
     graph = settings.topology.generateMinerGraph()
-    logging.info("Starting simulation")  # TODO: log simulation settings?
+    logging.info("Starting simulation")  # TODO: Log simulation settings?
     start = time.time()
     simulation = runOnce(settings, graph)
 
@@ -90,20 +90,20 @@ def run(file='sim.json', out='./out/data.json'):
         m = g.nodes[n]['miner']
         allMinerIds.add(m.id)
         allMiners.append(m)
-    unc = []  # unconsensed tx (consensed by 1 or more but not all miners)
-    bad_miners = set([0])  # start with 0 for reference
+    unconsensed_tx = []  # Consensed by 1 or more but not all miners.
+    miners_to_compare = set([0])  # Set of miners to display if some tx are unconsensed (always includes 0 for reference).
     for t in simulation.all_tx:
         states = {}
         for e in t.history:
             states[e.miner_id] = e.state
-        s = set([i for i in states if states[i] == transaction.State.CONSENSUS])  # have to do it like this to capture FINAL state, not just "was this ever in consensus"
+        s = set([i for i in states if states[i] == transaction.State.CONSENSUS])  # Have to do it like this to capture FINAL state, not just "was this ever in consensus".
         if s and allMinerIds - s:
-            bad_miners |= set(list(s)[:1])
-            unc.append(t)
-    if unc:
-        print "Consensus has still not been reached for some tx:", [t.id for t in unc]
-        print bad_miners
-        plot.plotAllDags([g.nodes[i]['miner'] for i in bad_miners])
+            miners_to_compare |= set(list(s)[:1])
+            unconsensed_tx.append(t)
+    if unconsensed_tx:
+        print "Consensus has still not been reached for some tx:", [t.id for t in unconsensed_tx]
+        print miners_to_compare
+        plot.plotAllDags([g.nodes[i]['miner'] for i in miners_to_compare])
     else:
         print "All tx consensed!"
     plot.plotDag(simulation.graph.nodes[0]['miner'])
@@ -111,6 +111,7 @@ def run(file='sim.json', out='./out/data.json'):
 
     simulation.writeData(out)
     logging.info("Simulation time: %f" % (time.time() - start))
+    analyze()
 
 
 @task()
@@ -122,5 +123,5 @@ def analyze(data_dir='./out/'):
 
 
 
-# Sets the default task
+# Sets the default task.
 __DEFAULT__ = run
