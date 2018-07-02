@@ -163,6 +163,7 @@ class Miner:
         """Attempt to make a new transaction (according to protocol's generation probability).
         """
 
+        # TODO: Include miner "power" (multiple rolls of the dice, or something more?).
         if random.random() < self.simulation.protocol.transaction_generation_probability:  # Chance to generate a new tx (important that this happens AFTER processing messages).
             newtx = self.makeTx()  # ABSTRACT - Make a new tx.
             self.changed_last_step = True

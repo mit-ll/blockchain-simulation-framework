@@ -87,7 +87,7 @@ class SimulationSettings:
         elif not self.allow_termination_cooldown:
             return True
 
-        if should_finish and self.target_termination_ticks < 0:  # Set the target termination if it hasn't been set already.
+        if should_finish and self.target_termination_ticks < 0:  # Set the target if it hasn't been set already.
             self.target_termination_ticks = simulation.tick + self.hard_limit_ticks
 
         if simulation.tick > self.target_termination_ticks:

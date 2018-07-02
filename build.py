@@ -1,9 +1,9 @@
+import concurrent.futures
 import copy
 import logging
 from pynt import task
 import sys
 import time
-import threading
 
 sys.path.append('.')
 import analysis
@@ -48,9 +48,11 @@ def runThreaded(settings, graph, thread_id, out_dir):
     """
 
     assert out_dir[-1] == '/'
+    logging.debug('Started thread %d' % thread_id)
     out_file = "%sdata%d.json" % (out_dir, thread_id)
     simulation = runOnce(settings, graph, thread_id)
     simulation.writeData(out_file)
+    logging.debug('Finished thread %d' % thread_id)
 
 
 @task()
@@ -65,18 +67,16 @@ def runMonteCarlo(file='sim.json', out_dir='./out/'):
     settings = SimulationSettings(file)
     if settings.topology_selection == TopologySelection.GENERATE_ONCE:
         single_graph = settings.topology.generateMinerGraph()
-
-    threads = []
-    for i in range(0, settings.number_of_executions):
-        if settings.topology_selection == TopologySelection.GENERATE_EACH_TIME:
-            graph = settings.topology.generateMinerGraph()
-        else:
-            graph = copy.deepcopy(single_graph)  # graph.copy() wasn't deepcopying miner objects attached to nodes.
-
-        thread_settings = copy.deepcopy(settings)
-        thread = threading.Thread(target=runThreaded, args=[thread_settings, graph, i, out_dir])
-        threads.append(thread)
-        thread.start()
+    start = time.time()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        for i in range(0, settings.number_of_executions):
+            if settings.topology_selection == TopologySelection.GENERATE_EACH_TIME:
+                graph = settings.topology.generateMinerGraph()
+            else:
+                graph = copy.deepcopy(single_graph)  # graph.copy() wasn't deepcopying miner objects attached to nodes.
+            thread_settings = copy.deepcopy(settings)
+            executor.submit(runThreaded, thread_settings, graph, i, out_dir)
+    logging.info("Time: %f" % (time.time() - start))
 
 
 @task()
@@ -135,8 +135,8 @@ def analyze(data_dir='./out/'):
     """
 
     data = analysis.loadData(data_dir)
-    for run in data:
-        analysis.showMultiCDF(run[1])
+    # for run in data:
+    #    analysis.showMultiCDF(run[1])
     analysis.showTotalCDF(data)
 
 
