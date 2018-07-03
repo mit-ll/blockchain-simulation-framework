@@ -68,7 +68,7 @@ def runMonteCarlo(file='sim.json', out_dir='./out/'):
     if settings.topology_selection == TopologySelection.GENERATE_ONCE:
         single_graph = settings.topology.generateMinerGraph()
     start = time.time()
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=settings.thread_workers) as executor:
         for i in range(0, settings.number_of_executions):
             if settings.topology_selection == TopologySelection.GENERATE_EACH_TIME:
                 graph = settings.topology.generateMinerGraph()

@@ -37,6 +37,7 @@ class SimulationSettings:
             data = json.load(settingsFile)
 
         # Load settings.
+        self.thread_workers = data['threadWorkers']
         self.number_of_executions = data['numberOfExecutions']
         self.topology_selection = TopologySelection[data['topologySelection']]
         self.termination_condition = TerminationCondition[data['terminationCondition']]

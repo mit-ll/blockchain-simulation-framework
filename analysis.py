@@ -1,5 +1,6 @@
 from collections import defaultdict
 import json
+import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -49,6 +50,36 @@ def showTotalCDF(data, exclude_genesis=True):
     plt.show()
 
 
+def reportDisconsensed(data):
+    tx_count = 0
+    disc_count = 0
+    became_disc_times = set()
+    disc_lasted_durations = []
+    for run in data:
+        run_results = run[1]
+        for tx_id in run_results:
+            tx_count += 1
+            counted = False
+            for disc in run_results[tx_id]['disconsensed']:
+                if not counted:
+                    disc_count += 1
+                    counted = True
+                became_disc_times.add(disc[0])
+                if disc[1] != -1: # Don't count disc durations if tx hadn't become consensed again before sim finished.
+                    disc_lasted_durations.append(disc[1])
+    if disc_count == 0:
+        logging.info("No nodes were disconsensed!")
+        return None
+    logging.info("%d out of %d tx disconsensed." %(disc_count,tx_count))
+    percent = disc_count / float(tx_count)
+    logging.info("Chance to be disconsensed: %f" % percent)
+    plotCDF(list(became_disc_times))
+    plt.show()
+    plotCDF(disc_lasted_durations)
+    plt.show()
+    return tx_count,disc_count,list(became_disc_times),disc_lasted_durations
+
+
 def loadData(data_dir):
     """Loads data from files in data_dir into a list of dictionaries mapping tx id to list of times it took for miners to reach consensus for that tx, one dict for each run.
 
@@ -61,6 +92,8 @@ def loadData(data_dir):
 
     raw_data = []
     for fname in os.listdir(data_dir):
+        if not fname.endswith('.json'):
+            continue
         with open(data_dir+fname, 'r') as infile:
             raw_data.append(json.load(infile, cls=GraphDecoder))
     if not raw_data:
@@ -73,17 +106,27 @@ def loadData(data_dir):
             history = run['tx_histories'][tx_id_str]
             tx_id = int(tx_id_str)
             max_times = defaultdict(int)
+            last_disc = -1
+            disconsensed = []
             created = None
             for event in history:  # Event is [time_step, miner_id, transaction.State].
                 if event[2] == 'CREATED':
                     created = event
                     continue
-                if event[2] != 'CONSENSUS':
+                elif event[2] == 'DISCONSENSED':
+                    assert created is not None
+                    disconsensed.append([event[0] - created[0], -1])
+                    last_disc = event[0]
                     continue
+                elif event[2] != 'CONSENSUS':
+                    continue
+                if last_disc > 0:
+                    disconsensed[-1][1] = event[0] - last_disc
                 elapsed = event[0] - created[0]
                 if max_times[event[1]] < elapsed:
                     max_times[event[1]] = elapsed
             run_results[tx_id]['created'] = created
             run_results[tx_id]['times'] = max_times.values()
+            run_results[tx_id]['disconsensed'] = disconsensed
         data.append((run['graph'], run_results))
     return data

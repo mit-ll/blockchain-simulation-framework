@@ -1,5 +1,6 @@
 {
-    "numberOfExecutions": 10000,
+    "threadWorkers" : 8,
+    "numberOfExecutions": 100,
     "topologySelection": "GENERATE_ONCE", 
     "terminationCondition": "NUMBER_OF_GENERATED_TRANSACTIONS",
     "terminationValue": 50,
@@ -15,7 +16,7 @@
         }
     },
     "protocol": {
-        "type": "BITCOIN",
+        "type": "IOTA",
         "acceptDepth": 6,
         "transactionGenerationProbability": 0.0001667
     }
