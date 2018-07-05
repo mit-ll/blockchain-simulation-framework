@@ -51,7 +51,7 @@ def dagToDig(miner, node, digraph=None):
     return digraph
 
 
-def plotDag(miner, fname='test.gv'):
+def plotDag(miner, fname='test.gv', view_output=True):
     """Plot the DAG of the miner's view of the blockchain.
 
     Arguments:
@@ -64,7 +64,7 @@ def plotDag(miner, fname='test.gv'):
     global visited
     visited = set()
     digraph = dagToDig(miner, miner.root)
-    digraph.render(fname, view=True)
+    digraph.render(fname, view=view_output)
 
 
 def plotAllDags(miners, fname='testall.gv'):

@@ -3,6 +3,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import transaction
 import miner
+import plot
 
 
 class Node:
@@ -47,6 +48,8 @@ class Bitcoin(miner.Miner):
         self.sheep_tx = set()  # Queue of tx to shepherd.
         self.reissue_ids = set()  # Temporary set of ids that need to be reissued (populated anew each time checkAll is called).
         self.orphan_nodes = []
+
+        self.file_num = 0
 
     def findInChain(self, target_hash):
         """
@@ -101,6 +104,13 @@ class Bitcoin(miner.Miner):
                     self.frontier_nodes.add(node_to_add)
                     chain_changed = True
                     nodes_to_add.remove(node_to_add)  # Remove from nodes_to_add as we go, copy to self.orphan_nodes at the end.
+
+                    # Graph generation.
+                    if self.id == 0:
+                        fname = './graphs/chainout%d.gv' % self.file_num
+                        plot.plotDag(self, fname, False)
+                        self.file_num += 1
+
                 elif first:  # Only for new orphan.
                     assert sender_id != self.id  # I'm processing a node I just created but I should never have created an orphan.
                     for parent, pointer in parents:

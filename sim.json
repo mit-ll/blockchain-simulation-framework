@@ -8,7 +8,7 @@
     "topology": {
         "type": "GEOMETRIC_UNIFORM_DELAY",
         "radius": 0.125,
-        "numberOfMiners": 200,
+        "numberOfMiners": 2000,
         "networkDelay": {
             "type": "GAUSSIAN",
             "average": 5,
@@ -16,8 +16,8 @@
         }
     },
     "protocol": {
-        "type": "IOTA",
+        "type": "BITCOIN",
         "acceptDepth": 6,
-        "transactionGenerationProbability": 0.0001667
+        "targetTicksBetweenGeneration": 600
     }
 }

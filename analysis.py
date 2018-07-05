@@ -65,19 +65,19 @@ def reportDisconsensed(data):
                     disc_count += 1
                     counted = True
                 became_disc_times.add(disc[0])
-                if disc[1] != -1: # Don't count disc durations if tx hadn't become consensed again before sim finished.
+                if disc[1] != -1:  # Don't count disc durations if tx hadn't become consensed again before sim finished.
                     disc_lasted_durations.append(disc[1])
     if disc_count == 0:
         logging.info("No nodes were disconsensed!")
         return None
-    logging.info("%d out of %d tx disconsensed." %(disc_count,tx_count))
+    logging.info("%d out of %d tx disconsensed." % (disc_count, tx_count))
     percent = disc_count / float(tx_count)
     logging.info("Chance to be disconsensed: %f" % percent)
     plotCDF(list(became_disc_times))
     plt.show()
     plotCDF(disc_lasted_durations)
     plt.show()
-    return tx_count,disc_count,list(became_disc_times),disc_lasted_durations
+    return tx_count, disc_count, list(became_disc_times), disc_lasted_durations
 
 
 def loadData(data_dir):
@@ -121,7 +121,9 @@ def loadData(data_dir):
                 elif event[2] != 'CONSENSUS':
                     continue
                 if last_disc > 0:
-                    disconsensed[-1][1] = event[0] - last_disc
+                    if event[0] > last_disc:  # Sequence of chronologically ordered events is broken when another history is appended.
+                        disconsensed[-1][1] = event[0] - last_disc
+                    last_disc = -1
                 elapsed = event[0] - created[0]
                 if max_times[event[1]] < elapsed:
                     max_times[event[1]] = elapsed

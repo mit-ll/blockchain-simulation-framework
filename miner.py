@@ -34,7 +34,7 @@ class Miner:
 
     name = "Naive"
 
-    def __init__(self, miner_id, genesis_tx, graph, simulation):
+    def __init__(self, miner_id, genesis_tx, graph, simulation, power=1):
         """        
         Arguments:
             miner_id {int} -- Miner's id.
@@ -43,6 +43,7 @@ class Miner:
             simulation {Simulation} -- Simulation object that stores settings and simulation variables.
         """
         self.id = miner_id
+        self.power = power
         self.graph = graph
         self.simulation = simulation
         self.pre_queue = []
@@ -161,10 +162,9 @@ class Miner:
 
     def attemptToMakeTx(self):
         """Attempt to make a new transaction (according to protocol's generation probability).
+        (Important that this happens AFTER processing messages).
         """
-
-        # TODO: Include miner "power" (multiple rolls of the dice, or something more?).
-        if random.random() < self.simulation.protocol.transaction_generation_probability:  # Chance to generate a new tx (important that this happens AFTER processing messages).
+        if random.random() < self.power * self.simulation.getGenerationProbability():  # Chance to generate a new tx.
             newtx = self.makeTx()  # ABSTRACT - Make a new tx.
             self.changed_last_step = True
             self.handleNewTx(newtx, self.id)

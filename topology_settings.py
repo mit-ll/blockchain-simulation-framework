@@ -60,6 +60,12 @@ class TopologySettings:
 
         if self.topology_type == TopologyType.STATIC:
             raise NotImplementedError("Static topologies are not yet implemented")
+            # Path to JSON graph as another setting.
+            # Load nx.Graph from JSON.
+            # Attach miners.
+            # What else?:
+            #   Static edge delay?
+            #   Miner power
         else:
             if self.topology_type == TopologyType.GEOMETRIC_UNIFORM_DELAY or self.topology_type == TopologyType.LOBSTER_UNIFORM_DELAY:
                 # Graphs with uniform delays for message transmission.

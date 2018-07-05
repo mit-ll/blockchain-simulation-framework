@@ -35,9 +35,9 @@ class ProtocolSettings:
         self.protocol_type = ProtocolType[data['type']]
         if self.protocol_type == ProtocolType.BITCOIN:
             self.accept_depth = data['acceptDepth']
-            self.transaction_generation_probability = data['transactionGenerationProbability']
+            self.target_ticks_between_generation = data['targetTicksBetweenGeneration']
         elif self.protocol_type == ProtocolType.IOTA:
-            self.transaction_generation_probability = data['transactionGenerationProbability']
+            self.target_ticks_between_generation = data['targetTicksBetweenGeneration']
         else:
             raise NotImplementedError("Selected protocol type is not implemented")
 

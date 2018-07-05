@@ -54,8 +54,11 @@ class Simulation:
         self.graph = graph
         genesis_tx = transaction.Tx(-1, None, 0)
         self.all_tx.append(genesis_tx)
+        self.total_miner_power = 0
         for node_index in self.graph.nodes:
-            graph.nodes[node_index]['miner'] = settings.protocol.getMinerClass()(node_index, genesis_tx, graph, self)
+            new_miner = settings.protocol.getMinerClass()(node_index, genesis_tx, graph, self)
+            self.total_miner_power += new_miner.power
+            graph.nodes[node_index]['miner'] = new_miner
         self.updateMinerAdjacencies()
 
     def updateMinerAdjacencies(self):
@@ -64,6 +67,9 @@ class Simulation:
 
         for node_index in self.graph.nodes:
             self.graph.nodes[node_index]['miner'].adjacencies = self.graph[node_index]
+
+    def getGenerationProbability(self):
+        return 1.0 / (self.settings.protocol.target_ticks_between_generation * self.total_miner_power)
 
     def runSimulation(self):
         """Run simulation on self.graph according to self.settings.
