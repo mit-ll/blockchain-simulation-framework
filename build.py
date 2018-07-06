@@ -158,6 +158,7 @@ def analyze(data_dir='./out/'):
     # for run in data:
     #    analysis.showMultiCDF(run[1])
     analysis.showTotalCDF(data)
+    analysis.reportDisconsensed(data)
 
 
 

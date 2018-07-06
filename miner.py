@@ -54,10 +54,7 @@ class Miner:
         self.seen_tx[genesis_tx.hash] = genesis_tx
         self.changed_last_step = False
         self.id_bag = simulation.protocol.getIdBag(simulation)
-
-        # These will be filled in by simulation.finalizeMiners().
-        self.adjacencies = {}
-        self.generation_probability = -1
+        self.adjacencies = {}  # These will be filled in by simulation.finalizeMiners().
 
     def pushMsg(self, msg, delay=0):
         """Push message into prequeue. Will be added to queue when flushMsgs() is called.
@@ -163,15 +160,14 @@ class Miner:
         if need_to_check or (self.hasSheep() and force_sheep_check):  # Have to check every time if has sheep.
             self.checkAllTx()
 
-    def attemptToMakeTx(self):
-        """Attempt to make a new transaction (according to protocol's generation probability).
-        (Important that this happens AFTER processing messages).
+    def makeNewTx(self):
+        """Make a new transaction (simulation rolled protocol's generation probability).
         """
-        if random.random() < self.generation_probability:  # Chance to generate a new tx.
-            newtx = self.makeTx()  # ABSTRACT - Make a new tx.
-            self.changed_last_step = True
-            self.handleNewTx(newtx, self.id)
-            self.checkAllTx()
+        new_tx = self.makeTx()  # ABSTRACT - Make a new tx.
+        logging.info("New tx (%d) created by miner %d" % (new_tx.id, self.id))
+        self.changed_last_step = True
+        self.handleNewTx(new_tx, self.id)
+        self.checkAllTx()
 
     # ==ABSTRACT====================================
     # Copy and overwrite these method in subclasses.
@@ -182,9 +178,9 @@ class Miner:
         Returns:
             Tx -- Newly created transaction.
         """
-        newtx = transaction.Tx(self.simulation.tick, self.id, self.id_bag.getNextId(), [])
-        self.simulation.all_tx.append(newtx)
-        return newtx
+        new_tx = transaction.Tx(self.simulation.tick, self.id, self.id_bag.getNextId(), [])
+        self.simulation.all_tx.append(new_tx)
+        return new_tx
 
     def checkReissues(self):
         """Miner adds any ids that need to be reiussed to its idBag.

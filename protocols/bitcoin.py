@@ -107,7 +107,7 @@ class Bitcoin(miner.Miner):
                     nodes_to_add.remove(node_to_add)  # Remove from nodes_to_add as we go, copy to self.orphan_nodes at the end.
 
                     # Graph generation.
-                    if self.id == 0:
+                    if False and self.id == 0:
                         fname = './graphs/chainout%d.gv' % self.file_num
                         plot.plotDag(self, fname, False)
                         self.file_num += 1

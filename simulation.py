@@ -3,6 +3,7 @@ import logging
 import networkx as nx
 import os
 import pickle
+import random
 
 from id_bag import IdBag
 from json_endec import GraphEncoder
@@ -31,6 +32,25 @@ def addToTimes(times, miner_id, time, max_time):
     return max_time
 
 
+def weightedRandomChoice(choices):
+    """    
+    Arguments:
+        choices {list(tuple)} -- List of (choice, weight) tuples.
+
+    Returns:
+        any -- One selected choice from choices selected according to a weighted random choice.
+    """
+
+    total_weights = sum(weight for choice, weight in choices)
+    r = random.uniform(0, total_weights)
+    current = 0
+    for choice, weight in choices:
+        if current + weight >= r:
+            return choice
+        current += weight
+    assert False
+
+
 class Simulation:
     def __init__(self, settings, graph, thread_id=0):
         """Sets up a single run of the simulation with the given settings and graph
@@ -54,10 +74,8 @@ class Simulation:
         self.graph = graph
         genesis_tx = transaction.Tx(-1, None, 0, [])
         self.all_tx.append(genesis_tx)
-        self.total_miner_power = 0
         for node_index in self.graph.nodes:
             new_miner = settings.protocol.getMinerClass()(node_index, genesis_tx, graph, self, self.settings.miner_power.sample())
-            self.total_miner_power += new_miner.power
             graph.nodes[node_index]['miner'] = new_miner
         self.finalizeMiners()
 
@@ -67,20 +85,20 @@ class Simulation:
         """
 
         for node_index in self.graph.nodes:
-            miner = self.graph.nodes[node_index]['miner']
-            miner.adjacencies = self.graph[node_index]
-            miner.generation_probability = miner.power * self.getGenerationProbability()
-
-    def getGenerationProbability(self):
-        return 1.0 / (self.settings.protocol.target_ticks_between_generation * self.total_miner_power)
+            self.graph.nodes[node_index]['miner'].adjacencies = self.graph[node_index]
 
     def runSimulation(self):
         """Run simulation on self.graph according to self.settings.
         """
 
         miners = []
+        miner_choices = []
         for node_index in self.graph.nodes:
-            miners.append(self.graph.nodes[node_index]['miner'])
+            miner = self.graph.nodes[node_index]['miner']
+            miners.append(miner)
+            miner_choices.append((miner, miner.power))
+
+        generation_probability = 1.0 / self.settings.protocol.target_ticks_between_generation
 
         if self.completed:  # Don't run the sim more than once.
             return
@@ -91,9 +109,8 @@ class Simulation:
                 miner.handleMsgs()  # Process messages, and populate reissues.
             for miner in miners:
                 miner.checkReissues()  # Add reissues to miner.id_bag.
-            if self.settings.shouldMakeNewTx(self):
-                for miner in miners:
-                    miner.attemptToMakeTx()  # If miner wins PoW lottery, generate a new tx.
+            if random.random() < generation_probability:  # One PoW roll per tick is much faster.
+                weightedRandomChoice(miner_choices).makeNewTx()
             for miner in miners:
                 miner.flushMsgs()
 
