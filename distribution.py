@@ -1,4 +1,5 @@
 from enum import Enum
+import math
 from numpy import random
 from pprint import pformat
 
@@ -7,10 +8,11 @@ class DistributionType(Enum):
     """Types of distributions to sample from.
     """
 
-    CONSTANT = 0,
-    UNIFORM = 1,
-    GAUSSIAN = 2,
+    CONSTANT = 0
+    UNIFORM = 1
+    GAUSSIAN = 2
     LAPLACIAN = 3
+    EXPONENTIAL = 4
 
 
 class Distribution:
@@ -31,6 +33,8 @@ class Distribution:
         elif self.distribution_type == DistributionType.GAUSSIAN or self.distribution_type == DistributionType.LAPLACIAN:
             self.average = settings['average']
             self.standard_deviation = settings['standardDeviation']
+        elif self.distribution_type == DistributionType.EXPONENTIAL:
+            self.beta = settings['beta']
         elif self.distribution_type == DistributionType.CONSTANT:
             self.value = settings['value']
         else:
@@ -54,6 +58,8 @@ class Distribution:
             return random.normal(self.average, self.standard_deviation, size)
         elif self.distribution_type == DistributionType.LAPLACIAN:
             return random.laplace(self.average, self.standard_deviation, size)
+        elif self.distribution_type == DistributionType.EXPONENTIAL:
+            return int(math.ceil(random.exponential(self.beta)))
         elif self.distribution_type == DistributionType.CONSTANT:
             return self.value
         else:

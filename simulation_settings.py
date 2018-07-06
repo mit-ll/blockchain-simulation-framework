@@ -20,7 +20,7 @@ class TerminationCondition(Enum):
     """Enumeration tracking when an individual simulation terminates.
     """
 
-    NUMBER_OF_GENERATED_TRANSACTIONS = 1,
+    NUMBER_OF_GENERATED_TRANSACTIONS = 1
     NUMBER_OF_TIME_TICKS = 2
 
 

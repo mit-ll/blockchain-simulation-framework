@@ -10,8 +10,8 @@ class TopologyType(Enum):
     """Types of miner topologies.
     """
 
-    STATIC = 1,  # Load the topology from a file.
-    GEOMETRIC_UNIFORM_DELAY = 2,
+    STATIC = 1  # Load the topology from a file.
+    GEOMETRIC_UNIFORM_DELAY = 2
     LOBSTER_UNIFORM_DELAY = 3  # TODO: Toy example that should eventually be removed.
     # TODO: Add appropraite types
 

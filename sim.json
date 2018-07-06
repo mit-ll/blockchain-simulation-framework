@@ -5,8 +5,8 @@
     "terminationCondition": "NUMBER_OF_GENERATED_TRANSACTIONS",
     "terminationValue": 50,
     "minerPower": {
-        "type": "CONSTANT",
-        "value": 1
+        "type": "EXPONENTIAL",
+        "beta": 0.25
     },
 
     "topology": {

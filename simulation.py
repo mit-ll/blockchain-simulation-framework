@@ -59,6 +59,7 @@ class Simulation:
             new_miner = settings.protocol.getMinerClass()(node_index, genesis_tx, graph, self, self.settings.miner_power.sample())
             self.total_miner_power += new_miner.power
             graph.nodes[node_index]['miner'] = new_miner
+        logging.info("Total miner power: %d" % self.total_miner_power)
         self.updateMinerAdjacencies()
 
     def updateMinerAdjacencies(self):
