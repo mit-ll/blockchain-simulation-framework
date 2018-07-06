@@ -82,13 +82,14 @@ class Iota(bitcoin.Bitcoin):
             Tx -- Newly created transaction.
         """
 
-        new_tx = transaction.Tx(self.simulation.tick, self.id, self.id_bag.getNextId())
+        pointers = []
         parents = self.getNewParents()
         assert parents  # Should always have at least one (genesis tx).
         for parent in parents:
-            parent_hash = parent.hash()
+            parent_hash = parent.hash
             assert parent_hash in self.chain_pointers
-            new_tx.pointers.append(parent_hash)
+            pointers.append(parent_hash)
+        new_tx = transaction.Tx(self.simulation.tick, self.id, self.id_bag.getNextId(), pointers)
         self.sheep_tx.add(new_tx)
         self.simulation.all_tx.append(new_tx)
         return new_tx

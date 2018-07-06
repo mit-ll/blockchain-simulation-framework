@@ -81,7 +81,27 @@ def runMonteCarlo(file='sim.json', out_dir='./out/'):
 
 @task()
 def run(file='sim.json', out='./out/data.json'):
-    """Executes one simulation and analyzes resulting data.
+    """Executes one simulation.
+
+    Keyword Arguments:
+        file {str} -- File name to load settings from. (default: {'sim.json'})
+        out {str} -- File name to store output to. (default: {'./out/data.json'})
+    """
+
+    settings = SimulationSettings(file)
+    graph = settings.topology.generateMinerGraph()
+    logging.info("Starting simulation")  # TODO: Log simulation settings?
+    start = time.time()
+    simulation = runOnce(settings, graph)
+
+    simulation.writeData(out)
+    logging.info("Simulation time: %f" % (time.time() - start))
+    # analyze()
+
+
+@task()
+def runWithDebug(file='sim.json', out='./out/data.json'):
+    """Executes one simulation and analyzes resulting data, including some debug functions
 
     Keyword Arguments:
         file {str} -- File name to load settings from. (default: {'sim.json'})
@@ -143,3 +163,6 @@ def analyze(data_dir='./out/'):
 
 # Sets the default task.
 __DEFAULT__ = run
+
+if __name__ == "__main__":
+    __DEFAULT__()

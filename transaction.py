@@ -6,7 +6,7 @@ class Tx:
     """A blockchain transaction.
     """
 
-    def __init__(self, curr_tick, miner_id, tx_id):
+    def __init__(self, curr_tick, miner_id, tx_id, pointers):
         """
         Arguments:
             curr_tick {int} -- Current simulation tick.
@@ -17,19 +17,12 @@ class Tx:
         self.origin = miner_id
         self.id = tx_id
         self.birthday = curr_tick
-        self.pointers = []  # Backpointer(s) are an inherent part of the tx, each miner takes it or leaves it as a whole.
+        self.pointers = pointers  # Backpointer(s) are an inherent part of the tx, each miner takes it or leaves it as a whole.
         self.history = []  # Event history.
         self.addEvent(curr_tick, miner_id, State.CREATED)
         self.stats = {}  # Filled in after simulation for data.
-
-    def hash(self):
-        """
-        Returns:
-            str -- Hash of transaction.
-        """
-
         str_to_hash = ''.join(self.pointers)+str(self.id)+str(self.birthday)+str(self.origin)  # Don't include mutable properties like history.
-        return hashlib.md5(str_to_hash).hexdigest()
+        self.hash = hashlib.md5(str_to_hash).hexdigest()
 
     def addEvent(self, time_stamp, miner_id, state):
         """Add event to transaction history.

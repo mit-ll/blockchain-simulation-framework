@@ -52,22 +52,24 @@ class Simulation:
         self.settings = settings
         self.protocol = settings.protocol
         self.graph = graph
-        genesis_tx = transaction.Tx(-1, None, 0)
+        genesis_tx = transaction.Tx(-1, None, 0, [])
         self.all_tx.append(genesis_tx)
         self.total_miner_power = 0
         for node_index in self.graph.nodes:
             new_miner = settings.protocol.getMinerClass()(node_index, genesis_tx, graph, self, self.settings.miner_power.sample())
             self.total_miner_power += new_miner.power
             graph.nodes[node_index]['miner'] = new_miner
-        logging.info("Total miner power: %d" % self.total_miner_power)
-        self.updateMinerAdjacencies()
+        self.finalizeMiners()
 
-    def updateMinerAdjacencies(self):
-        """Set miner.adjacencies for each miner. This should be called once at start up for static topologies, and before every step for dynamic.
+    def finalizeMiners(self):
+        """Set adjacencies and generation probability for each miner.
+        (Must be run after all miners are created.)
         """
 
         for node_index in self.graph.nodes:
-            self.graph.nodes[node_index]['miner'].adjacencies = self.graph[node_index]
+            miner = self.graph.nodes[node_index]['miner']
+            miner.adjacencies = self.graph[node_index]
+            miner.generation_probability = miner.power * self.getGenerationProbability()
 
     def getGenerationProbability(self):
         return 1.0 / (self.settings.protocol.target_ticks_between_generation * self.total_miner_power)
@@ -76,20 +78,24 @@ class Simulation:
         """Run simulation on self.graph according to self.settings.
         """
 
+        miners = []
+        for node_index in self.graph.nodes:
+            miners.append(self.graph.nodes[node_index]['miner'])
+
         if self.completed:  # Don't run the sim more than once.
             return
         self.tick = 0
         while True:
-            for node_index in self.graph.nodes:
-                self.graph.nodes[node_index]['miner'].id_bag.clear()
-                self.graph.nodes[node_index]['miner'].handleMsgs()  # Process messages, and populate reissues.
-            for node_index in self.graph.nodes:
-                self.graph.nodes[node_index]['miner'].checkReissues()  # Add reissues to miner.id_bag.
+            for miner in miners:
+                miner.id_bag.clear()
+                miner.handleMsgs()  # Process messages, and populate reissues.
+            for miner in miners:
+                miner.checkReissues()  # Add reissues to miner.id_bag.
             if self.settings.shouldMakeNewTx(self):
-                for node_index in self.graph.nodes:
-                    self.graph.nodes[node_index]['miner'].attemptToMakeTx()  # If miner wins PoW lottery, generate a new tx.
-            for node_index in self.graph.nodes:
-                self.graph.nodes[node_index]['miner'].flushMsgs()
+                for miner in miners:
+                    miner.attemptToMakeTx()  # If miner wins PoW lottery, generate a new tx.
+            for miner in miners:
+                miner.flushMsgs()
 
             if self.settings.shouldTerminate(self):
                 break
@@ -115,7 +121,7 @@ class Simulation:
         for tx in self.all_tx:
             if tx.id not in first_instances:
                 first_instances[tx.id] = tx
-            elif tx.id in first_instances and first_instances[tx.id].hash() != tx.hash():
+            elif tx.id in first_instances and first_instances[tx.id].hash != tx.hash:
                 first_instances[tx.id].history += tx.history  # Append tx history to first instance of tx's.
 
         for edge_id in self.graph.edges:

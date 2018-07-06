@@ -13,7 +13,7 @@ def nodeLabel(node):
     """
 
     tx = node.tx
-    return '<<B>%d</B><BR/>%s>' % (tx.id, tx.hash()[:4])
+    return '<<B>%d</B><BR/>%s>' % (tx.id, tx.hash[:4])
 
 
 visited = set()
@@ -33,7 +33,7 @@ def dagToDig(miner, node, digraph=None):
     """
 
     global visited
-    node_id = "%s%d" % (node.tx.hash(), miner.id)
+    node_id = "%s%d" % (node.tx.hash, miner.id)
     if node in visited:
         return digraph
     if digraph is None:
@@ -45,7 +45,7 @@ def dagToDig(miner, node, digraph=None):
         digraph.node(node_id, label=nodeLabel(node))
     visited.add(node)
     for child in node.children:
-        child_id = "%s%d" % (child.tx.hash(), miner.id)
+        child_id = "%s%d" % (child.tx.hash, miner.id)
         digraph.edge(child_id, node_id)
         dagToDig(miner, child, digraph)
     return digraph

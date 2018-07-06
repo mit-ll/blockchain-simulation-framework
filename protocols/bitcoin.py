@@ -41,7 +41,7 @@ class Bitcoin(miner.Miner):
         miner.Miner.__init__(self, miner_id, genesis_tx, graph, simulation, power)
         self.root = Node(genesis_tx)
         self.chain_pointers = {}  # Maps hash to node whose tx has that hash.
-        self.chain_pointers[genesis_tx.hash()] = self.root
+        self.chain_pointers[genesis_tx.hash] = self.root
         self.frontier_nodes = set([self.root])  # Update this as nodes are added instead of recomputing deepest nodes.
         self.consensed_tx = set()  # Set of tx I've accepted (only used to avoid spamming tx.history events); don't count on this for reporting, use tx.history instead.
         self.root.tx.addEvent(-1, self.id, transaction.State.CONSENSUS)
@@ -89,9 +89,9 @@ class Bitcoin(miner.Miner):
                 tx_to_add = node_to_add.tx
                 parents = [(self.findInChain(parent), parent) for parent in tx_to_add.pointers]  # Find node associated with each parent (works for both bitcoin and iota).
                 if None not in [p[0] for p in parents]:
-                    assert tx_to_add.hash() not in self.chain_pointers  # Make sure I've never seen this tx before.
+                    assert tx_to_add.hash not in self.chain_pointers  # Make sure I've never seen this tx before.
                     tx_to_add.addEvent(self.simulation.tick, self.id, transaction.State.PRE_CONSENSUS)
-                    self.chain_pointers[tx_to_add.hash()] = node_to_add
+                    self.chain_pointers[tx_to_add.hash] = node_to_add
                     to_broadcast.append(tx_to_add)
                     for parent, pointer in parents:
                         assert node_to_add not in parent.children
@@ -174,11 +174,10 @@ class Bitcoin(miner.Miner):
             Tx -- Newly created transaction.
         """
 
-        new_tx = transaction.Tx(self.simulation.tick, self.id, self.id_bag.getNextId())
         sorted_fronts = sorted(self.frontier_nodes, reverse=True, key=lambda n: n.depth)
         parent_choices = [n for n in sorted_fronts if n.depth == sorted_fronts[0].depth]  # Only consider the deepest frontier nodes.
         parent = random.choice(parent_choices)
-        new_tx.pointers.append(parent.tx.hash())
+        new_tx = transaction.Tx(self.simulation.tick, self.id, self.id_bag.getNextId(), [parent.tx.hash])
         self.sheep_tx.add(new_tx)
         self.simulation.all_tx.append(new_tx)
         return new_tx

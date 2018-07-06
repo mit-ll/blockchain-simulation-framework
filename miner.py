@@ -51,10 +51,13 @@ class Miner:
         self.pre_queue = []
         self.queue = []
         self.seen_tx = {}  # Dictionary mapping hash to tx for seen tx.
-        self.seen_tx[genesis_tx.hash()] = genesis_tx
+        self.seen_tx[genesis_tx.hash] = genesis_tx
         self.changed_last_step = False
         self.id_bag = simulation.protocol.getIdBag(simulation)
-        self.adjacencies = {}  # Will be filled in by simulation.updateMinerAdjacencies().
+
+        # These will be filled in by simulation.finalizeMiners().
+        self.adjacencies = {}
+        self.generation_probability = -1
 
     def pushMsg(self, msg, delay=0):
         """Push message into prequeue. Will be added to queue when flushMsgs() is called.
@@ -66,7 +69,6 @@ class Miner:
         Keyword Arguments:
             delay {int} -- Delay in ticks until message arrives. (default: {0})
         """
-
         self.pre_queue.append([msg, delay])
 
     def flushMsgs(self):
@@ -83,15 +85,14 @@ class Miner:
             list(Message) -- List of all messages recieved this tick.
         """
 
-        queue_copy = self.queue[:]
-        self.queue = []
         returned_msgs = []
-        for msg, delay in queue_copy:
+        for msg, delay in self.queue:
             delay -= 1
             if delay < 1:
                 returned_msgs.append(msg)
             else:
                 self.pushMsg(msg, delay)
+        self.queue = []
         return returned_msgs
 
     def broadcast(self, tx):
@@ -135,7 +136,7 @@ class Miner:
             sender_id {int} -- Id of miner who we received this tx from.
         """
 
-        self.seen_tx[tx.hash()] = tx
+        self.seen_tx[tx.hash] = tx
         for x in self.processNewTx(tx, sender_id):  # ABSTRACT - Process tx.
             self.broadcast(x)  # Broadcast new or first-time-seen-NON-ORPHAN tx only.
 
@@ -149,7 +150,7 @@ class Miner:
         for msg in self.popMsg():  # Receive message(s) from queue.
             if msg.type == Type.BLOCK:
                 new_tx = msg.content
-                if new_tx.hash() in self.seen_tx:
+                if new_tx.hash in self.seen_tx:
                     continue
                 need_to_check = True
                 self.changed_last_step = True
@@ -166,7 +167,7 @@ class Miner:
         """Attempt to make a new transaction (according to protocol's generation probability).
         (Important that this happens AFTER processing messages).
         """
-        if random.random() < self.power * self.simulation.getGenerationProbability():  # Chance to generate a new tx.
+        if random.random() < self.generation_probability:  # Chance to generate a new tx.
             newtx = self.makeTx()  # ABSTRACT - Make a new tx.
             self.changed_last_step = True
             self.handleNewTx(newtx, self.id)
@@ -181,7 +182,7 @@ class Miner:
         Returns:
             Tx -- Newly created transaction.
         """
-        newtx = transaction.Tx(self.simulation.tick, self.id, self.id_bag.getNextId())
+        newtx = transaction.Tx(self.simulation.tick, self.id, self.id_bag.getNextId(), [])
         self.simulation.all_tx.append(newtx)
         return newtx
 

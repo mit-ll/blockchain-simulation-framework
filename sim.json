@@ -5,14 +5,14 @@
     "terminationCondition": "NUMBER_OF_GENERATED_TRANSACTIONS",
     "terminationValue": 50,
     "minerPower": {
-        "type": "EXPONENTIAL",
-        "beta": 0.25
+        "type": "CONSTANT",
+        "value": 1
     },
 
     "topology": {
         "type": "GEOMETRIC_UNIFORM_DELAY",
         "radius": 0.125,
-        "numberOfMiners": 2000,
+        "numberOfMiners": 200,
         "networkDelay": {
             "type": "GAUSSIAN",
             "average": 5,
@@ -22,6 +22,6 @@
     "protocol": {
         "type": "BITCOIN",
         "acceptDepth": 6,
-        "targetTicksBetweenGeneration": 600
+        "targetTicksBetweenGeneration": 100
     }
 }
