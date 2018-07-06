@@ -11,16 +11,17 @@ class Iota(bitcoin.Bitcoin):
 
     name = "Iota"
 
-    def __init__(self, miner_id, genesis_tx, graph, simulation):
+    def __init__(self, miner_id, genesis_tx, graph, simulation, power=1):
         """        
         Arguments:
             miner_id {int} -- Miner's id.
             genesis_tx {Tx} -- Blockchain protocol's genesis transaction.
             graph {networkx.Graph} -- Graph of network being simulated.
             simulation {Simulation} -- Simulation object that stores settings and simulation variables.
+            power {int} -- Miner's power relative to other miners.
         """
 
-        bitcoin.Bitcoin.__init__(self, miner_id, genesis_tx, graph, simulation)
+        bitcoin.Bitcoin.__init__(self, miner_id, genesis_tx, graph, simulation, power)
 
     def getNewParents(self):
         """

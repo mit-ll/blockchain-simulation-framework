@@ -1,4 +1,5 @@
 from enum import Enum
+import logging
 import random
 import transaction
 
@@ -41,6 +42,7 @@ class Miner:
             genesis_tx {Tx} -- Blockchain protocol's genesis transaction.
             graph {networkx.Graph} -- Graph of network being simulated.
             simulation {Simulation} -- Simulation object that stores settings and simulation variables.
+            power {int} -- Miner's power relative to other miners.
         """
         self.id = miner_id
         self.power = power

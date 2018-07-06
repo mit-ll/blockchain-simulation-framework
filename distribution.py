@@ -7,6 +7,7 @@ class DistributionType(Enum):
     """Types of distributions to sample from.
     """
 
+    CONSTANT = 0,
     UNIFORM = 1,
     GAUSSIAN = 2,
     LAPLACIAN = 3
@@ -30,6 +31,8 @@ class Distribution:
         elif self.distribution_type == DistributionType.GAUSSIAN or self.distribution_type == DistributionType.LAPLACIAN:
             self.average = settings['average']
             self.standard_deviation = settings['standardDeviation']
+        elif self.distribution_type == DistributionType.CONSTANT:
+            self.value = settings['value']
         else:
             raise NotImplementedError("Distribution type not yet implemented")
 
@@ -51,6 +54,8 @@ class Distribution:
             return random.normal(self.average, self.standard_deviation, size)
         elif self.distribution_type == DistributionType.LAPLACIAN:
             return random.laplace(self.average, self.standard_deviation, size)
+        elif self.distribution_type == DistributionType.CONSTANT:
+            return self.value
         else:
             raise NotImplementedError("Distribution type not yet implemented")
 

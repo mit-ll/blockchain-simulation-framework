@@ -1,8 +1,9 @@
 from enum import Enum
 import json
+import logging
 from pprint import pformat
 
-import logging
+from distribution import Distribution
 from protocol_settings import ProtocolSettings
 from topology_settings import TopologySettings
 
@@ -42,6 +43,7 @@ class SimulationSettings:
         self.topology_selection = TopologySelection[data['topologySelection']]
         self.termination_condition = TerminationCondition[data['terminationCondition']]
         self.termination_value = data['terminationValue']
+        self.miner_power = Distribution(data['minerPower'])
 
         self.target_termination_ticks = -1
 

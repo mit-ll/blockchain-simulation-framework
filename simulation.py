@@ -56,7 +56,7 @@ class Simulation:
         self.all_tx.append(genesis_tx)
         self.total_miner_power = 0
         for node_index in self.graph.nodes:
-            new_miner = settings.protocol.getMinerClass()(node_index, genesis_tx, graph, self)
+            new_miner = settings.protocol.getMinerClass()(node_index, genesis_tx, graph, self, self.settings.miner_power.sample())
             self.total_miner_power += new_miner.power
             graph.nodes[node_index]['miner'] = new_miner
         self.updateMinerAdjacencies()

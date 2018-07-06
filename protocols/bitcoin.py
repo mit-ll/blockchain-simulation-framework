@@ -28,16 +28,17 @@ class Bitcoin(miner.Miner):
 
     name = "Bitcoin"
 
-    def __init__(self, miner_id, genesis_tx, graph, simulation):
+    def __init__(self, miner_id, genesis_tx, graph, simulation, power=1):
         """        
         Arguments:
             miner_id {int} -- Miner's id.
             genesis_tx {Tx} -- Blockchain protocol's genesis transaction.
             graph {networkx.Graph} -- Graph of network being simulated.
             simulation {Simulation} -- Simulation object that stores settings and simulation variables.
+            power {int} -- Miner's power relative to other miners.
         """
 
-        miner.Miner.__init__(self, miner_id, genesis_tx, graph, simulation)
+        miner.Miner.__init__(self, miner_id, genesis_tx, graph, simulation, power)
         self.root = Node(genesis_tx)
         self.chain_pointers = {}  # Maps hash to node whose tx has that hash.
         self.chain_pointers[genesis_tx.hash()] = self.root
