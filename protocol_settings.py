@@ -54,6 +54,17 @@ class ProtocolSettings:
         else:
             raise NotImplementedError("Selected protocol type is not implemented")
 
+    def isIdBagSingle(self):
+        """Returns True if the protocol uses a singleton IdBag, False otherwise.
+        """
+        
+        if self.protocol_type == ProtocolType.BITCOIN:
+            return True  # All bitcoin miners share one "pool" of tx.
+        elif self.protocol_type == ProtocolType.IOTA:
+            return False  # Iota miners are responsible for their shepherding their own tx.
+        else:
+            raise NotImplementedError("Selected protocol type is not implemented")
+
     def getIdBag(self, simulation):
         """Returns and IdBag object for a miner. Each miner should call this before the simulation starts.
 
@@ -64,12 +75,10 @@ class ProtocolSettings:
             IdBag -- The IdBag object the miner should use during the simulation.
         """
 
-        if self.protocol_type == ProtocolType.BITCOIN:
+        if self.isIdBagSingle():
             return id_bag.getSingleBag(simulation)  # All bitcoin miners share one "pool" of tx.
-        elif self.protocol_type == ProtocolType.IOTA:
-            return id_bag.IdBag(simulation)  # Iota miners are responsible for their shepherding their own tx.
         else:
-            raise NotImplementedError("Selected protocol type is not implemented")
+            return id_bag.IdBag(simulation)  # Iota miners are responsible for their shepherding their own tx.
 
     def __str__(self):
         """        

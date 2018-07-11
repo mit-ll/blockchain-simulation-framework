@@ -43,8 +43,8 @@ def runThreaded(settings, graph, thread_id, out_dir):
     Arguments:
         settings {SimulationSettings} -- Stores all settings for the run.
         graph {networkx.Graph} -- Graph object to run the simulation on; should have edge delays.
-        thread_id {[type]} -- The thread number of this run of the simulation.
-        out_dir {[type]} -- The directory where output should be written.
+        thread_id {int} -- The thread number of this run of the simulation.
+        out_dir {string} -- The directory where output should be written.
     """
 
     assert out_dir[-1] == '/'

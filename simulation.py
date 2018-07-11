@@ -42,10 +42,10 @@ def weightedRandomChoice(choices):
     """
 
     total_weights = sum(weight for choice, weight in choices)
-    r = random.uniform(0, total_weights)
+    target = random.uniform(0, total_weights)
     current = 0
     for choice, weight in choices:
-        if current + weight >= r:
+        if current + weight >= target:
             return choice
         current += weight
     assert False
@@ -75,21 +75,25 @@ class Simulation:
         genesis_tx = transaction.Tx(-1, None, 0, [])
         self.all_tx.append(genesis_tx)
         for node_index in self.graph.nodes:
-            new_miner = settings.protocol.getMinerClass()(node_index, genesis_tx, graph, self, self.settings.miner_power.sample())
+            new_miner = settings.protocol.getMinerClass()(node_index, genesis_tx, graph, self, self.settings.miner_power_distribution.sample())
             graph.nodes[node_index]['miner'] = new_miner
         self.finalizeMiners()
 
     def finalizeMiners(self):
-        """Set adjacencies and generation probability for each miner.
+        """Set adjacencies (miner, delay tuple) for each miner.
         (Must be run after all miners are created.)
         """
 
         for node_index in self.graph.nodes:
-            self.graph.nodes[node_index]['miner'].adjacencies = self.graph[node_index]
+            edges = self.graph[node_index]
+            self.graph.nodes[node_index]['miner'].adjacencies = {edge_index: (self.graph.nodes[edge_index]['miner'], edges[edge_index]['network_delay']) for edge_index in edges}
 
     def runSimulation(self):
         """Run simulation on self.graph according to self.settings.
         """
+        
+        if self.completed:  # Don't run the sim more than once.
+            return
 
         miners = []
         miner_choices = []
@@ -100,19 +104,33 @@ class Simulation:
 
         generation_probability = 1.0 / self.settings.protocol.target_ticks_between_generation
 
-        if self.completed:  # Don't run the sim more than once.
-            return
         self.tick = 0
+        changes_since_last_tick = True #This allows us to skip to tx generation if that's all that needs to be done this tick.
         while True:
-            for miner in miners:
-                miner.id_bag.clear()
-                miner.handleMsgs()  # Process messages, and populate reissues.
-            for miner in miners:
-                miner.checkReissues()  # Add reissues to miner.id_bag.
-            if random.random() < generation_probability:  # One PoW roll per tick is much faster.
+            had_changes = changes_since_last_tick
+            changes_since_last_tick = False
+            if had_changes:
+                miners_have_msgs = False
+                for miner in miners:
+                    if miner.queue:
+                        miners_have_msgs = True
+                        break
+                if miners_have_msgs:
+                    changes_since_last_tick = True
+                    if self.protocol.isIdBagSingle():
+                        miners[0].id_bag.clear()
+                    for miner in miners:
+                        if not self.protocol.isIdBagSingle():
+                            miner.id_bag.clear()
+                        miner.handleMsgs()  # Process messages, and populate reissues.
+                    for miner in miners:
+                        miner.checkReissues()  # Add reissues to miner.id_bag.
+            if self.settings.shouldMakeNewTx(self) and random.random() < generation_probability:  # One PoW roll per tick is much faster.
+                changes_since_last_tick = True
                 weightedRandomChoice(miner_choices).makeNewTx()
-            for miner in miners:
-                miner.flushMsgs()
+            if had_changes or changes_since_last_tick:
+                for miner in miners:
+                    miner.flushMsgs()
 
             if self.settings.shouldTerminate(self):
                 break

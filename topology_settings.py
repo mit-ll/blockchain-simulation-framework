@@ -4,13 +4,14 @@ import networkx as nx
 from pprint import pformat
 
 from distribution import Distribution
+from json_endec import GraphDecoder
 
 
 class TopologyType(Enum):
     """Types of miner topologies.
     """
 
-    STATIC = 1  # Load the topology from a file.
+    STATIC_UNIFORM_DELAY = 1  # Load the topology from a file.
     GEOMETRIC_UNIFORM_DELAY = 2
     LOBSTER_UNIFORM_DELAY = 3  # TODO: Toy example that should eventually be removed.
     # TODO: Add appropraite types
@@ -35,8 +36,10 @@ class TopologySettings:
             data = value
 
         self.topology_type = TopologyType[data['type']]
-        if self.topology_type == TopologyType.STATIC:
-            raise NotImplementedError("Static topologies are not yet implemented")
+        if self.topology_type == TopologyType.STATIC_UNIFORM_DELAY:
+            self.network_delay = Distribution(data['networkDelay'])
+            self.static_file = data['file']
+            self.static_graph = None
         else:
             self.number_of_miners = data['numberOfMiners']
 
@@ -58,32 +61,27 @@ class TopologySettings:
             networkx.Graph -- Graph of miners to be used in simulation.
         """
 
-        if self.topology_type == TopologyType.STATIC:
-            raise NotImplementedError("Static topologies are not yet implemented")
-            # Path to JSON graph as another setting.
-            # Load nx.Graph from JSON.
-            # Attach miners.
-            # What else?:
-            #   Static edge delay?
-            #   Miner power
+        graph = None
+        if self.topology_type == TopologyType.STATIC_UNIFORM_DELAY:
+            if not self.static_graph:
+                with open(self.static_file, 'r') as infile:
+                    raw_data = json.load(infile, cls=GraphDecoder)
+                    self.static_graph = raw_data['graph']
+            graph = self.static_graph
         else:
-            if self.topology_type == TopologyType.GEOMETRIC_UNIFORM_DELAY or self.topology_type == TopologyType.LOBSTER_UNIFORM_DELAY:
-                # Graphs with uniform delays for message transmission.
-                if self.topology_type == TopologyType.GEOMETRIC_UNIFORM_DELAY:
-                    graph = nx.random_geometric_graph(self.number_of_miners, self.radius)
-                elif self.topology_type == TopologyType.LOBSTER_UNIFORM_DELAY:
-                    graph = nx.random_lobster(self.number_of_miners, self.p1, self.p2)
+            while graph is None or not nx.is_connected(graph):
+                if self.topology_type == TopologyType.GEOMETRIC_UNIFORM_DELAY or self.topology_type == TopologyType.LOBSTER_UNIFORM_DELAY:
+                    # Graphs with uniform delays for message transmission.
+                    if self.topology_type == TopologyType.GEOMETRIC_UNIFORM_DELAY:
+                        graph = nx.random_geometric_graph(self.number_of_miners, self.radius)
+                    elif self.topology_type == TopologyType.LOBSTER_UNIFORM_DELAY:
+                        graph = nx.random_lobster(self.number_of_miners, self.p1, self.p2)
+                else:
+                    raise NotImplementedError("Selected topology type is not implemented.")
 
-                # Note: we'll need to do this for static topologies when they are implemented.
-                for edge in graph.edges:
-                    graph.edges[edge]['network_delay'] = self.network_delay
-            else:
-                raise NotImplementedError("Selected topology type is not implemented.")
-
-        if not nx.is_connected(graph):
-            return self.generateMinerGraph()
-        else:
-            return graph
+        for edge in graph.edges:
+            graph.edges[edge]['network_delay'] = self.network_delay
+        return graph
 
     def __str__(self):
         """        

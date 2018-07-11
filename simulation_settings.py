@@ -43,7 +43,7 @@ class SimulationSettings:
         self.topology_selection = TopologySelection[data['topologySelection']]
         self.termination_condition = TerminationCondition[data['terminationCondition']]
         self.termination_value = data['terminationValue']
-        self.miner_power = Distribution(data['minerPower'])
+        self.miner_power_distribution = Distribution(data['minerPower'])
 
         self.target_termination_ticks = -1
 

@@ -82,6 +82,8 @@ class Miner:
             list(Message) -- List of all messages recieved this tick.
         """
 
+        if not self.queue:
+            return []
         returned_msgs = []
         for msg, delay in self.queue:
             delay -= 1
@@ -111,8 +113,8 @@ class Miner:
         """
 
         assert not (msg.type == Type.BLOCK and set(msg.content.pointers) - set(self.seen_tx))  # Shouldn't send a tx if I don't know tx for all of its pointers.
-        edge = self.adjacencies[recipient_id]
-        self.graph.nodes[recipient_id]['miner'].pushMsg(msg, edge['network_delay'].sample())
+        neighbor, delay = self.adjacencies[recipient_id]
+        neighbor.pushMsg(msg, delay.sample())
 
     def sendRequest(self, recipient_id, target_hash):
         """Send request for a tx with target_hash.
@@ -143,6 +145,9 @@ class Miner:
 
         force_sheep_check = self.changed_last_step
         self.changed_last_step = False
+        if not self.queue:
+            return
+        
         need_to_check = False
         for msg in self.popMsg():  # Receive message(s) from queue.
             if msg.type == Type.BLOCK:
