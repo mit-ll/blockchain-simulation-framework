@@ -69,13 +69,13 @@ def runMonteCarlo(file='sim.json', out_dir='./out/'):
         single_graph = settings.topology.generateMinerGraph()
     start = time.time()
     with concurrent.futures.ThreadPoolExecutor(max_workers=settings.thread_workers) as executor:
-        for i in range(0, settings.number_of_executions):
+        for thread_id in range(0, settings.number_of_executions):
             if settings.topology_selection == TopologySelection.GENERATE_EACH_TIME:
                 graph = settings.topology.generateMinerGraph()
             else:
                 graph = copy.deepcopy(single_graph)  # graph.copy() wasn't deepcopying miner objects attached to nodes.
             thread_settings = copy.deepcopy(settings)
-            executor.submit(runThreaded, thread_settings, graph, i, out_dir)
+            executor.submit(runThreaded, thread_settings, graph, thread_id, out_dir)
     logging.info("Time: %f" % (time.time() - start))
 
 

@@ -138,7 +138,8 @@ class Simulation:
                         miner.handleMsgs()  # Process messages, and populate reissues.
                     for miner in miners:
                         miner.checkReissues()  # Add reissues to miner.id_bag.
-            if self.settings.shouldMakeNewTx(self) and random.random() < generation_probability:  # One PoW roll per tick is much faster.
+            # Global PoW roll is much faster. "While" allows the possible but unlikely event that two miners gen tx on the same tick.
+            while self.settings.shouldMakeNewTx(self) and random.random() < generation_probability:
                 changes_since_last_tick = True
                 weightedRandomChoice(miner_choices).makeNewTx()
             if had_changes or changes_since_last_tick:
