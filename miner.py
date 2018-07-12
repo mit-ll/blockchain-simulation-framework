@@ -147,7 +147,7 @@ class Miner:
         self.changed_last_step = False
         if not self.queue:
             return
-        
+
         need_to_check = False
         for msg in self.popMsg():  # Receive message(s) from queue.
             if msg.type == Type.BLOCK:

@@ -72,17 +72,30 @@ class Simulation:
         self.settings = settings
         self.protocol = settings.protocol
         self.graph = graph
+
+        self.attachMiners()
+
+    def attachMiners(self):
+        """Creates Miner objects (including calculating power) and attaches them to graph nodes, then populates miner adjacencies.
+        """
+
+        top_powers = []
+        if self.settings.top_miner_power:
+            num_other_miners = len(self.graph.nodes) - len(self.settings.top_miner_power)
+            other_miners_power = 100.0 - sum(self.settings.top_miner_power)
+            assert num_other_miners > 0 and other_miners_power > 0
+            power_to_percent_ratio = float(num_other_miners) / other_miners_power
+            top_powers = [percent*power_to_percent_ratio for percent in self.settings.top_miner_power]
+
         genesis_tx = transaction.Tx(-1, None, 0, [])
         self.all_tx.append(genesis_tx)
         for node_index in self.graph.nodes:
-            new_miner = settings.protocol.getMinerClass()(node_index, genesis_tx, graph, self, self.settings.miner_power_distribution.sample())
-            graph.nodes[node_index]['miner'] = new_miner
-        self.finalizeMiners()
-
-    def finalizeMiners(self):
-        """Set adjacencies (miner, delay tuple) for each miner.
-        (Must be run after all miners are created.)
-        """
+            if node_index > len(top_powers) - 1:
+                power = self.settings.miner_power_distribution.sample()
+            else:
+                power = top_powers[node_index]
+            new_miner = self.protocol.getMinerClass()(node_index, genesis_tx, self.graph, self, power)
+            self.graph.nodes[node_index]['miner'] = new_miner
 
         for node_index in self.graph.nodes:
             edges = self.graph[node_index]
@@ -91,7 +104,7 @@ class Simulation:
     def runSimulation(self):
         """Run simulation on self.graph according to self.settings.
         """
-        
+
         if self.completed:  # Don't run the sim more than once.
             return
 
@@ -105,7 +118,7 @@ class Simulation:
         generation_probability = 1.0 / self.settings.protocol.target_ticks_between_generation
 
         self.tick = 0
-        changes_since_last_tick = True #This allows us to skip to tx generation if that's all that needs to be done this tick.
+        changes_since_last_tick = True  # This allows us to skip to tx generation if that's all that needs to be done this tick.
         while True:
             had_changes = changes_since_last_tick
             changes_since_last_tick = False

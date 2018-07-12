@@ -51,6 +51,12 @@ def showTotalCDF(data, exclude_genesis=True):
 
 
 def reportDisconsensed(data):
+    """Reports on which transactions were in consensus and left it during the simulation.
+
+    Arguments:
+        data {list((networkx.Graph, dict))} -- Output of loadData below.
+    """
+
     tx_count = 0
     disc_count = 0
     became_disc_times = set()
@@ -78,6 +84,26 @@ def reportDisconsensed(data):
     plotCDF(disc_lasted_durations)
     plt.show()
     return tx_count, disc_count, list(became_disc_times), disc_lasted_durations
+
+
+def timeBetweenTx(data):
+    """Returns a list of the number of elapsed ticks between each created transaction.
+
+    Arguments:
+        data {list((networkx.Graph, dict))} -- Output of loadData below.
+    """
+
+    between = []
+    for run in data:
+        run_results = run[1]
+        last = 0
+        for created in sorted([run_results[tx_id]['created'][0] for tx_id in run_results]):
+            if created < 0:
+                continue
+            assert created > last, "created: %d; last: %d" % (created, last)
+            between.append(created-last)
+            last = created
+    return between
 
 
 def loadData(data_dir):

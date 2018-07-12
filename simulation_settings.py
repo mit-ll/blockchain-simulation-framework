@@ -44,6 +44,12 @@ class SimulationSettings:
         self.termination_condition = TerminationCondition[data['terminationCondition']]
         self.termination_value = data['terminationValue']
         self.miner_power_distribution = Distribution(data['minerPower'])
+        self.top_miner_power = None
+
+        # Percent power share of the top N miners, currently drawn from https://btc.com/stats/pool?pool_mode=week on July 11, 2018.
+        # Each element of the list is an float between 0 and 100; the list must sum to < 100.
+        if 'topMinerPower' in data:
+            self.top_miner_power = data['topMinerPower']
 
         self.target_termination_ticks = -1
 

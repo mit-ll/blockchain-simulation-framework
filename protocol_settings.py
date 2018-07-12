@@ -57,7 +57,7 @@ class ProtocolSettings:
     def isIdBagSingle(self):
         """Returns True if the protocol uses a singleton IdBag, False otherwise.
         """
-        
+
         if self.protocol_type == ProtocolType.BITCOIN:
             return True  # All bitcoin miners share one "pool" of tx.
         elif self.protocol_type == ProtocolType.IOTA:
