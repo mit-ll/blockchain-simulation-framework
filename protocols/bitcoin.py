@@ -85,7 +85,9 @@ class Bitcoin(miner.Miner):
         to_broadcast = []
         while chain_changed and nodes_to_add:  # Keep checking all nodes until nothing changed (or there are no orphans).
             chain_changed = False
-            for node_to_add in nodes_to_add:
+            index = 0  # Need to use index because we will be removing items as we iterate through nodes_to_add.
+            while index < len(nodes_to_add):
+                node_to_add = nodes_to_add[index]
                 tx_to_add = node_to_add.tx
                 parents = [(self.findInChain(parent), parent) for parent in tx_to_add.pointers]  # Find node associated with each parent (works for both bitcoin and iota).
                 if None not in [p[0] for p in parents]:
@@ -105,6 +107,7 @@ class Bitcoin(miner.Miner):
                     self.frontier_nodes.add(node_to_add)
                     chain_changed = True
                     nodes_to_add.remove(node_to_add)  # Remove from nodes_to_add as we go, copy to self.orphan_nodes at the end.
+                    index -= 1
 
                     # Graph generation.
                     if False and self.id == 0:
@@ -117,6 +120,7 @@ class Bitcoin(miner.Miner):
                     for parent, pointer in parents:
                         if parent is None:
                             self.sendRequest(sender_id, pointer)
+                index += 1
             first = False
         self.orphan_nodes = nodes_to_add  # Leftover nodes are orphans.
         return to_broadcast
