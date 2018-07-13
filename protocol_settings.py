@@ -38,6 +38,8 @@ class ProtocolSettings:
             self.target_ticks_between_generation = data['targetTicksBetweenGeneration']
         elif self.protocol_type == ProtocolType.IOTA:
             self.target_ticks_between_generation = data['targetTicksBetweenGeneration']
+            self.alpha = data['alpha']
+            self.required_confidence = data['requiredConfidence']
         else:
             raise NotImplementedError("Selected protocol type is not implemented")
 

@@ -19,6 +19,7 @@ class Tx:
         self.birthday = curr_tick
         self.pointers = pointers  # Backpointer(s) are an inherent part of the tx, each miner takes it or leaves it as a whole.
         self.history = []  # Event history.
+        self.confidence_history = []  # Used for Iota. Reuses Event object but replaces state with int confidence [0-100]
         self.addEvent(curr_tick, miner_id, State.CREATED)
         self.stats = {}  # Filled in after simulation for data.
         str_to_hash = ''.join(self.pointers)+str(self.id)+str(self.birthday)+str(self.origin)  # Don't include mutable properties like history.

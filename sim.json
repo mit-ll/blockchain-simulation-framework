@@ -1,9 +1,9 @@
 {
     "threadWorkers": 8,
-    "numberOfExecutions": 50,
+    "numberOfExecutions": 64,
     "topologySelection": "GENERATE_ONCE", 
     "terminationCondition": "NUMBER_OF_GENERATED_TRANSACTIONS",
-    "terminationValue": 30,
+    "terminationValue": 50,
     "topMinerPower": [22.05, 13.95, 11.8, 11.51, 9.17, 9.07, 3.61, 1.85, 1.76, 1.66, 1.56, 1.37, 1.37, 1.27, 0.98, 0.88, 0.78, 0.59, 0.59, 0.39, 0.29],
     "minerPower": {
         "type": "CONSTANT",
@@ -13,15 +13,17 @@
     "topology": {
         "type": "GEOMETRIC_UNIFORM_DELAY",
         "radius": 0.125,
-        "numberOfMiners": 2000,
+        "numberOfMiners": 200,
         "networkDelay": {
             "type": "EXPONENTIAL",
-            "beta": 0.5
+            "beta": 5
         }
     },
     "protocol": {
-        "type": "BITCOIN",
+        "type": "IOTA",
+        "targetTicksBetweenGeneration": 2,
         "acceptDepth": 6,
-        "targetTicksBetweenGeneration": 6000
+        "alpha": 1,
+        "requiredConfidence": 95
     }
 }

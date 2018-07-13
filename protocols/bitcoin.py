@@ -18,8 +18,11 @@ class Node:
 
         self.tx = tx
         self.children = []
-        self.depth = 0  # Used by Bitcoin, not Iota.
-        self.reachable = set()  # Used by Iota, not Bitcoin.
+        # Used by Bitcoin, not Iota.
+        self.depth = 0
+        # Used by Iota, not Bitcoin.
+        self.reachable = set()
+        self.weight = 0
 
 
 class Bitcoin(miner.Miner):
@@ -50,7 +53,7 @@ class Bitcoin(miner.Miner):
         self.reissue_ids = set()  # Temporary set of ids that need to be reissued (populated anew each time checkAll is called).
         self.orphan_nodes = []
 
-        self.file_num = 0
+        self.file_num = 0  # Graph generation.
 
     def findInChain(self, target_hash):
         """
@@ -116,19 +119,19 @@ class Bitcoin(miner.Miner):
                         self.file_num += 1
 
                 elif first:  # Only for new orphan.
-                    assert sender_id != self.id  # I'm processing a node I just created but I should never have created an orphan.
+                    assert sender_id != self.id  # If I'm processing a node I just created, I should never have created an orphan.
                     for parent, pointer in parents:
                         if parent is None:
                             self.sendRequest(sender_id, pointer)
                 index += 1
-            first = False
+                first = False
         self.orphan_nodes = nodes_to_add  # Leftover nodes are orphans.
         return to_broadcast
 
     def checkTxRecursion(self, node, max_depth=-99, curr_depth=0):
         """Recursive function with dual functionality:
         Always returns maximum depth of the chain.
-        If maxDepth is > 0, will also mark tx as accepted if they are in the deepest chain and at least as deep as the accept depth (will also add sheep to self.reissue_ids if appropriate).
+        If max_depth param is > 0, will also mark tx as accepted if they are in the deepest chain and at least as deep as the accept depth (will also add sheep to self.reissue_ids if appropriate).
 
         Arguments:
             node {Node} -- The current node being examined by the recursive function.
