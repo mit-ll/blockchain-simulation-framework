@@ -1,8 +1,6 @@
 import json
 import networkx as nx
 
-import transaction
-
 
 class GraphEncoder(json.JSONEncoder):
     """A JSONEncoder for serialzing networkx.Graph objects.    

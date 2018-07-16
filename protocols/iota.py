@@ -1,5 +1,4 @@
 import random
-import networkx as nx
 import transaction
 import miner
 import bitcoin
@@ -110,5 +109,8 @@ class Iota(bitcoin.Bitcoin):
                 if node.tx in self.consensed_tx:
                     node.tx.addEvent(self.simulation.tick, self.id, transaction.State.DISCONSENSED)
                     self.consensed_tx.remove(node.tx)
-                if node.tx in self.sheep_tx and self.needsReissue(node):
-                    self.reissue_ids.add(node.tx.id)
+                # This reissue strategy doesn't work because we don't know how much time to give a tx in Iota.
+                #   In Bitcoin, for example, we know to wait until the chain is 6+ deep to check reissues.
+                #   It is unclear how long to wait in Iota because we can't rely on a tx staying either consensed or not.
+                # if node.tx in self.sheep_tx and self.needsReissue(node):
+                #    self.reissue_ids.add(node.tx.id)

@@ -105,6 +105,3 @@ def simplePlot(graph, pos=None):
     else:
         nx.draw_networkx(graph, with_labels=False, node_size=20)
     plt.show()
-
-
-# Reinstate plotly later if desired.

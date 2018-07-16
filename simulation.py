@@ -1,8 +1,6 @@
 import json
 import logging
-import networkx as nx
 import os
-import pickle
 import random
 
 from id_bag import IdBag

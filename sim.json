@@ -1,6 +1,6 @@
 {
     "threadWorkers": 8,
-    "numberOfExecutions": 50,
+    "numberOfExecutions": 32,
     "topologySelection": "GENERATE_ONCE", 
     "terminationCondition": "NUMBER_OF_GENERATED_TRANSACTIONS",
     "terminationValue": 30,

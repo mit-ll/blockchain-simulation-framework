@@ -7,12 +7,10 @@ import time
 
 sys.path.append('.')
 import analysis
-
-import transaction  # DEBUG
-
 import plot
 from simulation_settings import SimulationSettings, TopologySelection
 from simulation import Simulation
+import transaction
 
 # Setup logging.
 logging.basicConfig(level=logging.DEBUG)
@@ -90,7 +88,7 @@ def run(file='sim.json', out='./out/data.json'):
 
     settings = SimulationSettings(file)
     graph = settings.topology.generateMinerGraph()
-    logging.info("Starting simulation")  # TODO: Log simulation settings?
+    logging.info("Starting simulation")
     start = time.time()
     simulation = runOnce(settings, graph)
 
@@ -110,7 +108,7 @@ def runWithDebug(file='sim.json', out='./out/data.json'):
 
     settings = SimulationSettings(file)
     graph = settings.topology.generateMinerGraph()
-    logging.info("Starting simulation")  # TODO: Log simulation settings?
+    logging.info("Starting simulation")
     start = time.time()
     simulation = runOnce(settings, graph)
 
