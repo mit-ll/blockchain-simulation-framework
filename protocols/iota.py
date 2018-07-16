@@ -1,8 +1,13 @@
-import random
+from collections import defaultdict
 import networkx as nx
-import transaction
-import miner
+import random
+
 import bitcoin
+import logging
+import miner
+import plot
+from simulation import weightedRandomChoice
+import transaction
 
 
 class Iota(bitcoin.Bitcoin):
@@ -23,12 +28,42 @@ class Iota(bitcoin.Bitcoin):
 
         bitcoin.Bitcoin.__init__(self, miner_id, genesis_tx, graph, simulation, power)
 
+    def randomWalkRecursion(self, node):
+        """Performs a Markov random walk by starting at the root and moving to a child selected by a weighted random choice.
+        This process is repeated recursively for the selected child until a frontier node is reached.
+
+        Arguments:
+            node {Node} -- The current node being visited in the random walk.
+
+        Returns:
+            Node -- The frontier node selected by the walk.
+        """
+
+        if not node.children:
+            return node
+        selection = node.children[0]
+        if len(node.children) > 1:
+            choices = [(child, child.weight*self.simulation.protocol.alpha) for child in node.children]
+            selection = weightedRandomChoice(choices)
+        return self.randomWalkRecursion(selection)
+
     def getNewParents(self):
         """
         Returns:
             list(Tx) -- List of 1 or 2 parent tx for new tx.
         """
 
+        if len(self.frontier_nodes) < 3:
+            return [parent.tx for parent in self.frontier_nodes]
+
+        self.updateNodeWeightsRecursion(self.root)
+        parents = set()
+        while len(parents) < 2:
+            selection = self.randomWalkRecursion(self.root)
+            parents.add(selection)
+        return [parent.tx for parent in parents]
+
+    def old_getNewParents(self):
         node_choices = list(self.frontier_nodes)
         if self.root in node_choices and len(node_choices) >= 3:
             node_choices.remove(self.root)
@@ -59,6 +94,22 @@ class Iota(bitcoin.Bitcoin):
                 return False
         return True
 
+    def updateNodeWeightsRecursion(self, node):
+        """Recursively walks all nodes updating their weight. Weight is the number of tx that directly or indirectly approve a given tx.
+
+        Arguments:
+            node {Node} -- The current node being visited.
+
+        Returns:
+            int -- The weight of the current node being visited.
+        """
+
+        weight = 1
+        for child in node.children:
+            weight += self.updateNodeWeightsRecursion(child)
+        node.weight = weight
+        return weight
+
     def needsReissue(self, node):
         """
         Arguments:
@@ -87,7 +138,7 @@ class Iota(bitcoin.Bitcoin):
         assert parents  # Should always have at least one (genesis tx).
         for parent in parents:
             parent_hash = parent.hash
-            assert parent_hash in self.chain_pointers
+            assert parent_hash in self.chain_pointers and parent_hash in self.seen_tx
             pointers.append(parent_hash)
         new_tx = transaction.Tx(self.simulation.tick, self.id, self.id_bag.getNextId(), pointers)
         self.sheep_tx.add(new_tx)
@@ -98,6 +149,35 @@ class Iota(bitcoin.Bitcoin):
         """Check all nodes for consensus (runs an implicit "tau function" on each node, but all at once because it's faster), and whether sheep need to be reissued.
         """
 
+        self.reissue_ids = set()  # Only reset when you checkAll so that it stays full!
+        self.updateNodeWeightsRecursion(self.root)
+
+        confirmation_confidences = defaultdict(int)
+        for i in range(100):
+            for node in self.randomWalkRecursion(self.root).reachable:
+                confirmation_confidences[node] += 1
+
+        for node in confirmation_confidences:
+            confidence = confirmation_confidences[node]
+            node.tx.confidence_history.append(transaction.Event(self.simulation.tick, self.id, confidence))
+            if confidence >= self.simulation.protocol.required_confidence:
+                if node.tx not in self.consensed_tx:
+                    node.tx.addEvent(self.simulation.tick, self.id, transaction.State.CONSENSUS)
+                    self.consensed_tx.add(node.tx)
+            else:
+                if node.tx in self.consensed_tx:
+                    node.tx.addEvent(self.simulation.tick, self.id, transaction.State.DISCONSENSED)
+                    self.consensed_tx.remove(node.tx)
+                # TODO: re-enable reissue. How long to wait?
+                # if node.tx in self.sheep_tx and self.needsReissue(node):
+                #    self.reissue_ids.add(node.tx.id)
+        if self.id == 0:
+            self.updateNodeWeightsRecursion(self.root)
+            fname = './graphs/chainout%d.gv' % self.file_num
+            plot.plotDag(self, fname, False)
+            self.file_num += 1
+
+    def old_checkAllTx(self):
         self.reissue_ids = set()  # Only reset when you checkAll so that it stays full!
         for node in self.chain_pointers.values():
             if self.reachableByAllFrontiers(node):
@@ -110,5 +190,6 @@ class Iota(bitcoin.Bitcoin):
                 if node.tx in self.consensed_tx:
                     node.tx.addEvent(self.simulation.tick, self.id, transaction.State.DISCONSENSED)
                     self.consensed_tx.remove(node.tx)
-                if node.tx in self.sheep_tx and self.needsReissue(node):
-                    self.reissue_ids.add(node.tx.id)
+                # TODO: re-enable reissue. How long to wait?
+                # if node.tx in self.sheep_tx and self.needsReissue(node):
+                #    self.reissue_ids.add(node.tx.id)

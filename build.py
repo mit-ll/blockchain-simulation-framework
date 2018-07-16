@@ -134,11 +134,11 @@ def runWithDebug(file='sim.json', out='./out/data.json'):
             unconsensed_tx.append(t)
     if unconsensed_tx:
         print "Consensus has still not been reached for some tx:", [t.id for t in unconsensed_tx]
-        print miners_to_compare
-        plot.plotAllDags([g.nodes[i]['miner'] for i in miners_to_compare])
+        #print miners_to_compare
+        #plot.plotAllDags([g.nodes[i]['miner'] for i in miners_to_compare])
     else:
         print "All tx consensed!"
-    plot.plotDag(simulation.graph.nodes[0]['miner'])
+    #plot.plotDag(simulation.graph.nodes[0]['miner'])
     # END DEBUG
 
     simulation.writeData(out)

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from graphviz import Digraph
 
 
-def nodeLabel(node):
+def nodeLabel(node, miner_id):
     """
     Arguments:
         node {Node} -- Node to generate graphbiz label for.
@@ -13,7 +13,12 @@ def nodeLabel(node):
     """
 
     tx = node.tx
-    return '<<B>%d</B><BR/>%s>' % (tx.id, tx.hash[:4])
+    conf = 0
+    if len(tx.confidence_history):
+        for e in tx.confidence_history:
+            if e.miner_id == miner_id:
+                conf = e.state
+    return '<<B>%d</B><BR/>%s<BR/>%d<BR/>%d>' % (tx.id, tx.hash[:4], conf, node.weight)
 
 
 visited = set()
@@ -40,9 +45,9 @@ def dagToDig(miner, node, digraph=None):
         digraph = Digraph()
         digraph.graph_attr['rankdir'] = 'RL'
     if node.tx in miner.consensed_tx:
-        digraph.node(node_id, label=nodeLabel(node), fillcolor='#ffff66', style='filled')
+        digraph.node(node_id, label=nodeLabel(node, miner.id), fillcolor='#ffff66', style='filled')
     else:
-        digraph.node(node_id, label=nodeLabel(node))
+        digraph.node(node_id, label=nodeLabel(node, miner.id))
     visited.add(node)
     for child in node.children:
         child_id = "%s%d" % (child.tx.hash, miner.id)

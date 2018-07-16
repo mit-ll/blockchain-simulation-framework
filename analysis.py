@@ -105,8 +105,26 @@ def timeBetweenTx(data):
             last = created
     return between
 
+#r is data[i][1]
 
-def loadData(data_dir):
+
+def showAllConfidencePlots(r):
+    bad = set()
+    for i in r:
+        c = r[i]['confidences']
+        for m in c:
+            for v in c[m][1]:
+                if v < 100:
+                    bad.add(i)
+                    break
+    for i in bad:
+        c = r[i]['confidences']
+        for m in c:
+            plt.plot(c[m][0], c[m][1])
+        plt.show()
+
+
+def loadData(data_dir='./out/'):
     """Loads data from files in data_dir into a list of dictionaries mapping tx id to list of times it took for miners to reach consensus for that tx, one dict for each run.
 
     Arguments:
@@ -153,6 +171,12 @@ def loadData(data_dir):
                 elapsed = event[0] - created[0]
                 if max_times[event[1]] < elapsed:
                     max_times[event[1]] = elapsed
+            confidence_history = run['tx_confidence_histories'][tx_id_str]
+            confidences = defaultdict(lambda: ([], []))
+            for event in confidence_history:
+                confidences[event[1]][0].append(event[0])
+                confidences[event[1]][1].append(event[2])
+            run_results[tx_id]['confidences'] = confidences
             run_results[tx_id]['created'] = created
             run_results[tx_id]['times'] = max_times.values()
             run_results[tx_id]['disconsensed'] = disconsensed

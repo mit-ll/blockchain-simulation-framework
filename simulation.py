@@ -166,12 +166,13 @@ class Simulation:
         if self.json_data:  # Don't generate data more than once.
             return
 
-        first_instances = {}  # Maps id to first isse of that id.
+        first_instances = {}  # Maps ids to first issue of that id.
         for tx in self.all_tx:
             if tx.id not in first_instances:
                 first_instances[tx.id] = tx
             elif tx.id in first_instances and first_instances[tx.id].hash != tx.hash:
                 first_instances[tx.id].history += tx.history  # Append tx history to first instance of tx's.
+                first_instances[tx.id].confidence_history += tx.confidence_history
 
         for edge_id in self.graph.edges:
             self.graph.edges[edge_id].pop('network_delay', None)
@@ -184,6 +185,9 @@ class Simulation:
             'graph': self.graph,
             'tx_histories': {
                 tx_id: [(event.time_stamp, event.miner_id, event.state.name) for event in first_instances[tx_id].history] for tx_id in first_instances
+            },
+            'tx_confidence_histories': {
+                tx_id: [(event.time_stamp, event.miner_id, event.state) for event in first_instances[tx_id].confidence_history] for tx_id in first_instances
             }
         }
 

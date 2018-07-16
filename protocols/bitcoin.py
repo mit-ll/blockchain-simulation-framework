@@ -18,8 +18,11 @@ class Node:
 
         self.tx = tx
         self.children = []
-        self.depth = 0  # Used by Bitcoin, not Iota.
-        self.reachable = set()  # Used by Iota, not Bitcoin.
+        # Used by Bitcoin, not Iota.
+        self.depth = 0
+        # Used by Iota, not Bitcoin.
+        self.reachable = set()
+        self.weight = 0
 
 
 class Bitcoin(miner.Miner):
@@ -50,7 +53,7 @@ class Bitcoin(miner.Miner):
         self.reissue_ids = set()  # Temporary set of ids that need to be reissued (populated anew each time checkAll is called).
         self.orphan_nodes = []
 
-        self.file_num = 0
+        self.file_num = 0  # Graph generation.
 
     def findInChain(self, target_hash):
         """
@@ -107,15 +110,8 @@ class Bitcoin(miner.Miner):
                     chain_changed = True
                     nodes_to_add.remove(node_to_add)  # Remove from nodes_to_add as we go, copy to self.orphan_nodes at the end.
                     index -= 1
-
-                    # Graph generation.
-                    if False and self.id == 0:
-                        fname = './graphs/chainout%d.gv' % self.file_num
-                        plot.plotDag(self, fname, False)
-                        self.file_num += 1
-
                 elif first:  # Only for new orphan.
-                    assert sender_id != self.id  # I'm processing a node I just created but I should never have created an orphan.
+                    assert sender_id != self.id  # If I'm processing a node I just created, I should never have created an orphan.
                     for parent, pointer in parents:
                         if parent is None:
                             self.sendRequest(sender_id, pointer)
@@ -129,7 +125,7 @@ class Bitcoin(miner.Miner):
     def checkTxRecursion(self, node, max_depth=-99, curr_depth=0):
         """Recursive function with dual functionality:
         Always returns maximum depth of the chain.
-        If maxDepth is > 0, will also mark tx as accepted if they are in the deepest chain and at least as deep as the accept depth (will also add sheep to self.reissue_ids if appropriate).
+        If max_depth param is > 0, will also mark tx as accepted if they are in the deepest chain and at least as deep as the accept depth (will also add sheep to self.reissue_ids if appropriate).
 
         Arguments:
             node {Node} -- The current node being examined by the recursive function.
@@ -226,6 +222,11 @@ class Bitcoin(miner.Miner):
         if max_depth < self.simulation.protocol.accept_depth:
             return
         self.checkTxRecursion(self.root, max_depth)
+        # Graph generation.
+        if False and self.id == 0:
+            fname = './graphs/chainout%d.gv' % self.file_num
+            plot.plotDag(self, fname, False)
+            self.file_num += 1
 
     def removeSheep(self, sheep_id):
         """Overseer will call this to tell the miner that it doesn't have to shepherd an id anymore.
