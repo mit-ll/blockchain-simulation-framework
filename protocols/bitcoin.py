@@ -84,9 +84,8 @@ class Bitcoin(miner.Miner):
         nodes_to_add = [new_node] + self.orphan_nodes[:]
         self.orphan_nodes = []
         first = True
-        chain_changed = True
         to_broadcast = []
-        while chain_changed and nodes_to_add:  # Keep checking all nodes until nothing changed (or there are no orphans).
+        while nodes_to_add:  # Keep checking all nodes until nothing changed (or there are no orphans).
             chain_changed = False
             index = 0  # Need to use index because we will be removing items as we iterate through nodes_to_add.
             while index < len(nodes_to_add):
@@ -111,13 +110,6 @@ class Bitcoin(miner.Miner):
                     chain_changed = True
                     nodes_to_add.remove(node_to_add)  # Remove from nodes_to_add as we go, copy to self.orphan_nodes at the end.
                     index -= 1
-
-                    # Graph generation.
-                    if False and self.id == 0:
-                        fname = './graphs/chainout%d.gv' % self.file_num
-                        plot.plotDag(self, fname, False)
-                        self.file_num += 1
-
                 elif first:  # Only for new orphan.
                     assert sender_id != self.id  # If I'm processing a node I just created, I should never have created an orphan.
                     for parent, pointer in parents:
@@ -125,6 +117,8 @@ class Bitcoin(miner.Miner):
                             self.sendRequest(sender_id, pointer)
                 index += 1
                 first = False
+            if not chain_changed:
+                break
         self.orphan_nodes = nodes_to_add  # Leftover nodes are orphans.
         return to_broadcast
 
@@ -228,6 +222,11 @@ class Bitcoin(miner.Miner):
         if max_depth < self.simulation.protocol.accept_depth:
             return
         self.checkTxRecursion(self.root, max_depth)
+        # Graph generation.
+        if False and self.id == 0:
+            fname = './graphs/chainout%d.gv' % self.file_num
+            plot.plotDag(self, fname, False)
+            self.file_num += 1
 
     def removeSheep(self, sheep_id):
         """Overseer will call this to tell the miner that it doesn't have to shepherd an id anymore.

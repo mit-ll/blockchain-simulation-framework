@@ -5,6 +5,7 @@ import random
 import bitcoin
 import logging
 import miner
+import plot
 from simulation import weightedRandomChoice
 import transaction
 
@@ -170,6 +171,11 @@ class Iota(bitcoin.Bitcoin):
                 # TODO: re-enable reissue. How long to wait?
                 # if node.tx in self.sheep_tx and self.needsReissue(node):
                 #    self.reissue_ids.add(node.tx.id)
+        if self.id == 0:
+            self.updateNodeWeightsRecursion(self.root)
+            fname = './graphs/chainout%d.gv' % self.file_num
+            plot.plotDag(self, fname, False)
+            self.file_num += 1
 
     def old_checkAllTx(self):
         self.reissue_ids = set()  # Only reset when you checkAll so that it stays full!
