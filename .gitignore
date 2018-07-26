@@ -106,3 +106,7 @@ ENV/
 .vscode/
 out*/
 profiling_results
+*.aux
+*.bbl
+*.blg
+*.synctex.gz
