@@ -255,23 +255,62 @@ Maybe just pushes instability later
 
 Not sure why those initial "worst case" graphs saw it disappearing; a better (direct from json) graph showed plenty of instability still, just later. Note that I didn't choose graph timelines so it's not like I was "only looking from 0-30" explicitly.
 
-Worried that the threshold prevents miners from doing \textit{anything} with a transaction for 30 ticks. Instead tried a fix where if a miner had issued a transaction they couldn't issue another one until it was "age threshold" old. I think that might have looked promising (or at least better).
+Worried that the threshold prevents miners from doing \textit{anything} with a transaction for 30 ticks. Instead tried a fix where if a miner had issued a transaction they couldn't issue another one until it was "age threshold" old. I think that might have looked promising (or at least better); comparing 0 to 30 to 150 tick age thresholds with this method yielded decreasing percentages of disconsensed transactions, but also increased time to consensus (12 MC runs of 500 miners).
 
 Take a second to think this through. Should the bare 30 tick wait time work or not??? If yes, why didn't it work?
 
+\section{Original Plan Document}
 
-%out_12_iota_500_miners_10_ticks_exp_5_250_tx_oneback_wait_0
-%out_12_iota_500_miners_10_ticks_exp_5_250_tx_oneback_wait_150_fixattempt
-%out_12_iota_500_miners_10_ticks_exp_5_250_tx_oneback_wait_30
-%out_12_iota_500_miners_10_ticks_exp_5_250_tx_oneback_wait_30_fixattempt
-%out_1_iota_500_miners_10_ticks_exp_5_250_tx_oneback_wait_0
-%out_1_iota_500_miners_10_ticks_exp_5_250_tx_oneback_wait_30
-%out_30_iota_500_miners_10_ticks_exp_5_150_tx_oneback_reiss_wait_0
-%out_30_iota_500_miners_10_ticks_exp_5_150_tx_oneback_reiss_wait_30
-%out_5_iota_500_miners_10_ticks_exp_5_500_tx_oneback
+\subsection{Definitions}
 
+\subsubsection{Transactions}
+Transactions are opaque data blocks that can point to other transactions, serving as nodes in the ledger.
 
+\subsubsection{Miners}
+Miners are nodes in the network that run the consensus protocol. Miners referenced in this document are assumed to be honest; adding behavior for dishonest miners is a stretch goal.
 
+Miners have a ``Tau function''
+
+\[\tau_\beta^\alpha(tx) = \{true,false\}\]
+
+where $\alpha$ is the probability that that the miners are in consensus about that transaction (i.e. they have ``accepted'' it) and $\beta$ is the proportion of the network assumed to be honest.
+
+Furthermore, the simulation maintains a state for each miner/transaction pair from the following set \{unknown, pre-consensus, $\tau$-consensus\}. ``Unknown'' means the miner hasn't seen that transaction yet, ``pre-consensus'' transactions are ones that the miner has seen but isn't in consensus on yet, and ``$\tau$-consensus'' transactions are ones for which the miner's $\tau_\beta^\alpha(tx)$ returns $true$.
+
+Miners participate in a P2P network with one another. At each tick, they have a certain chance to generate a new transaction, then they broadcast new transactions to their neighbors and forward messages that they receive from neighbors.
+
+\subsubsection{Topology}
+The topology of the nodes in the network will be static for now, with dynamic topology left as a stretch goal. As part of its input, the simulation will take a parameter that dictates the family of topology it will generate. A simple example is a fully-connected topology in which every node is connected to every other node.
+
+Each link in the network can also have propagation delay and probability of dropping a message.
+
+\subsubsection{Assumptions}
+\begin{enumerate}
+  \item The time scale of network latency is close to the time scale of consensus protocol ticks.
+  \item Protocols will not give up on a transaction they generated. If a transaction is not consensed the first time, its originating miner will rebroadcast it.
+\end{enumerate}
+
+\subsection{Output}
+The simulation will be given a protocol, topology, $\alpha$ and $\beta$ and will output the following metrics: whether the protocol was stable, whether it eventually reached consensus, and probability distributions for when transactions where accepted.
+
+\subsubsection{Stability}
+A protocol on a given topology is stable if once a given transaction enters consensus it never leaves consensus. Stability is defined as
+
+\[\forall tx~\neg\exists \textrm{ a miner } s.t.~\tau_\beta^\alpha(tx) = true \textrm{ at time } t \wedge \tau_\beta^\alpha(tx) = false \textrm{ at time } t + i \textrm{ for that miner}.\]
+
+\subsubsection{Eventual Consensus}
+A protocol on a given topology has eventual consensus if all transactions are eventually accepted by the miners in the protocol. Eventual consensus is defined as
+
+\[\forall tx~\exists t~s.t.~\forall \textrm{ miners } \tau_\beta^\alpha(tx) = true \textrm{ at time } t.\]
+
+\subsubsection{Accepted Transactions}
+The simulation will output probability distributions for each transactions. Namely, the time it took for each miner to accept it and the time it took for all miners to accept it.
+
+\subsection{Implementation}
+NetLogo is good for displaying networks that change over time, and Tyler's code shows that it is robust enough to simulate IOTA's Tangle protocol. However, the main focus of this simulation (as evidenced by its output) is on properties of protocols and metrics about when transactions are approved, not on network topology or other visuals. As such, we will implement the system in Python, using the networkx library to handle graph representation and visualization. This will allow us to use stronger object-oriented programming paradigms for building the simulation and defining the protocols in it, while still getting the network topology visualization we will need.
+
+\subsection{Next Steps}
+The next step is to start building the simulation, beginning with the trivial case of a protocol in which each miner periodically generates transactions and broadcasts them to all neighbors. When a miner receives a transaction it accepts it immediately (i.e. $\tau_\beta^\alpha(tx) = true$) and forwards it on to its neighbors. That simple case will allow us to sanity-check the underlying framework before moving on to implement more realistic protocols.
 
 
 \end{document}
