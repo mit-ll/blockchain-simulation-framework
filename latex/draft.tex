@@ -1,5 +1,7 @@
 \documentclass[letterpaper,11pt]{article}
 \usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\graphicspath{ {./images/} }
 \begin{document}
 
 \section{Introduction}
@@ -121,7 +123,6 @@ The network topology of the miners participating in a blockchain consensus proto
 
 \subsubsection{Results}
 
-
 \subsection{Other Insights}
 %"What I learned"
 
@@ -129,9 +130,9 @@ Investigating blockchain consensus protocols via direct simulation has yielded s
 
 The distribution of power among Bitcoin miners is an important consideration for the protocol. The more power an entity controls, the more they can tamper with or disrupt the blockchain. When mining power is distributed as unevenly as it is in the current Bitcoin landscape, however, the resulting blockchain has fewer forks because the same few miners are the ones adding to the chain, increasing the likelihood that their personal views of the blockchain are up-to-date.
 
-One of the major questions facing Iota is when to consider a transaction
+One of the major questions facing Iota is when to consider a transaction in consensus.
 
-Waiting (20--30) time steps to check Iota consensus!!!
+Waiting (20--30) time steps to check Iota consensus reduces instability.
 
 What else?
 
@@ -141,6 +142,136 @@ Malicious miners
 Dynamic graphs
 
 Other protocols, including newly invented ones
+
+\subsection{Assorted Results}
+These sections serve to preserve interesting results gathered from experimenting with the protocols in the simulation. These results are not meant to be published as-is and should be rewritten and incorporated into the main text, above.
+
+\subsubsection{Realistic Bitcoin}
+\begin{verbatim}
+{
+    "threadWorkers": 8,
+    "numberOfExecutions": 1144,
+    "topologySelection": "GENERATE_ONCE", 
+    "terminationCondition": "NUMBER_OF_GENERATED_TRANSACTIONS",
+    "topMinerPower": [22.05, 13.95, 11.8, 11.51, 9.17, 9.07, 3.61, 1.85, 1.76, 1.66, 1.56, 1.37, 1.37, 1.27, 0.98, 0.88, 0.78, 0.59, 0.59, 0.39, 0.29],
+    "terminationValue": 30,
+    "minerPower": {
+        "type": "CONSTANT",
+        "value": 1
+    },
+
+    "topology": {
+        "type": "GEOMETRIC_UNIFORM_DELAY",
+        "radius": 0.05,
+        "numberOfMiners": 2000,
+        "networkDelay": {
+            "type": "EXPONENTIAL",
+            "beta": 0.5
+        }
+    },
+    "protocol": {
+        "type": "BITCOIN",
+        "acceptDepth ": 6,
+        "targetTicksBetweenGeneration": 6000
+    }
+}
+\end{verbatim}
+
+These parameters reflect a realistic estimate of the real-world Bitcoin mining network. 2000 miners is smaller than the estimated number of miners (4000--7000) but is a reasonable abstraction because not all real-world miners mine blocks and they may collaborate in pools that can be thought of as one ``effective miner''.  Percent power share of the top 21 miners was drawn from \verb|https://btc.com/stats/pool?pool_mode=week| on July 11, 2018. The exponential distribution for message delay with a beta of 0.5 is rounded to only give integer results. This results in message delays exponentially distributed between 1 and 10 time steps. That, combined with a target transaction generation rate of one transaction every 6000 ticks, and given that real-world Internet delay is exponential between 100ms and 1000ms means that one time step is approximately 10ms.
+
+\includegraphics[scale=0.5]{realbctimes}
+
+The results of running the simulation with these parameters give a consensus time of <60 minutes on average. This is a bit on the high side, but is a reasonable result when compared to the ground truth of how Bitcoin operates today.
+
+These results eclipse various runs with less realistic density (see below) or fewer Monte Carlo runs. That data is therefore not included.
+
+\subsubsection{Denser Bitcoin}
+This run of the simulation is similar to the above, but only contains 264 runs. It was run with a less realistic topology: much more dense than is realistic (geometric with radius 0.0125). Note that the \textit{combination} of number of miners and geometric radius determine the density of the topology (so with a fixed radius, the graph will be sparser with fewer miners and denser with more miners).
+
+\includegraphics[scale=0.5]{densebctimes}
+
+As expected, the average consensus time is reduced. One time step here is approx. 10ms, so average is close to 30 minutes.
+
+\subsubsection{Comparing Bitcoin}
+
+We compared Bitcoin's performance when running on a sparse (linear) vs. realistically dense (geometric with radius 0.05) topology. We also compare different transaction generation rates (6s, 60s, 600s) and realistic (same as above) and high latency (I think the networkDelay ``beta'' was 100, but I don't have the data). These simulations were run with uniform miner power.
+
+\includegraphics[scale=0.2]{bccomp}
+
+(Note that these results are normalized, meaning that the number of time steps it took each transaction to be in consensus was divided by the generation rate. Otherwise, the higher rate settings give much faster results.) Notice how close the lines are together for 600s and even 60s. This is why we didn't include high latency results for either of those generation rates; the just cluttered that same band. These results are actually less dramatic than we expected.
+
+\subsubsection{Realistic Iota}
+\begin{verbatim}
+{
+    "threadWorkers": 8,
+    "numberOfExecutions": 120,
+    "topologySelection": "GENERATE_ONCE", 
+    "terminationCondition": "NUMBER_OF_GENERATED_TRANSACTIONS",
+    "terminationValue": 30,
+    "minerPower": {
+        "type": "CONSTANT",
+        "value": 1
+    },
+
+    "topology": {
+        "type": "GEOMETRIC_UNIFORM_DELAY",
+        "radius": 0.125,
+        "numberOfMiners": 500,
+        "networkDelay": {
+            "type": "EXPONENTIAL",
+            "beta": 5
+        }
+    },
+    "protocol": {
+        "type": "IOTA",
+        "targetTicksBetweenGeneration": 10
+    }
+}
+\end{verbatim}
+
+These parameters reflect the most realistic reflection of Iota that we could find. 500 miners may be a low estimate for the number of miners, but it is not off by an order of magnitude. The topology is an estimate of Iota density, and in reality the density could be sparser. 10 transactions per second is a realistic estimate of generation rate, although a few sources said 100/s. The oft-cited goal of iota is 1000 transactions per second. Network delay is similar to Bitcoin, but is an exponential distribution between 10 and 100 time steps. Again, given that real-world Internet delay is exponential between 100ms and 1000ms, this means that a time step is approximately 100ms. 10 time steps between generation is one transaction every 0.1s or 10 transactions per second.
+
+\includegraphics[scale=0.5]{realiotatimes}
+
+Time to consensus is much faster; 3 seconds on average.
+
+\includegraphics[scale=0.5]{realiotadisc}
+
+Transactions move in and out of consensus, meaning that the protocol is unstable. Instability is observed at all realistic Iota scenarios, but if the parameters are increased to something similar to Bitcoin (more dense, much slower transaction generation rate), then the Tangle starts to become linear (note that the Iota specification \textit{does allow} for transactions to have only one back pointer if there is only one frontier note, or ``tip'', even though all of the previous results use a random second pointer if there is only one) and instability can disappear.
+
+Here, we report transactions that moved out of consensus by a CDF of how long they were out of consensus. The simulation also reports a percentage of transactions that were ever ``disconsensed'' (moved out of consensus after being in it). For these realistic parameters, we see more than 20\% of transactions were ever disconsensed.
+
+\subsubsection{Iota with One Backpointer Vs. Random Backpointer}
+Having Iota miners select another random backpointer when there is only one frontier transaction yields different results then when transactions are allowed to have only one backpointer. (Note: I found definite Iota sources that referred to the protocol allowing one backpointer and none that talked about selecting a random second one).
+
+\includegraphics[scale=0.5]{iotaonebackvsrandom}
+
+Top is one backpointer allowed, bottom is required random second pointer. The difference is not extreme. Note that this is very rough as this is only 1 run of the simulation each.
+
+\subsubsection{Digging Deeper into Iota Age Threshold ``Fix'' for Stability}
+Not a done deal
+
+Maybe just pushes instability later
+
+Not sure why those initial "worst case" graphs saw it disappearing; a better (direct from json) graph showed plenty of instability still, just later. Note that I didn't choose graph timelines so it's not like I was "only looking from 0-30" explicitly.
+
+Worried that the threshold prevents miners from doing \textit{anything} with a transaction for 30 ticks. Instead tried a fix where if a miner had issued a transaction they couldn't issue another one until it was "age threshold" old. I think that might have looked promising (or at least better).
+
+Take a second to think this through. Should the bare 30 tick wait time work or not??? If yes, why didn't it work?
+
+
+%out_12_iota_500_miners_10_ticks_exp_5_250_tx_oneback_wait_0
+%out_12_iota_500_miners_10_ticks_exp_5_250_tx_oneback_wait_150_fixattempt
+%out_12_iota_500_miners_10_ticks_exp_5_250_tx_oneback_wait_30
+%out_12_iota_500_miners_10_ticks_exp_5_250_tx_oneback_wait_30_fixattempt
+%out_1_iota_500_miners_10_ticks_exp_5_250_tx_oneback_wait_0
+%out_1_iota_500_miners_10_ticks_exp_5_250_tx_oneback_wait_30
+%out_30_iota_500_miners_10_ticks_exp_5_150_tx_oneback_reiss_wait_0
+%out_30_iota_500_miners_10_ticks_exp_5_150_tx_oneback_reiss_wait_30
+%out_5_iota_500_miners_10_ticks_exp_5_500_tx_oneback
+
+
+
 
 
 \end{document}
